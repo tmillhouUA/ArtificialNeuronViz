@@ -42,6 +42,20 @@
       fill: #111111;
     }
 
+    /* Input value (1 or 0) shown inside each input square, in the opposite
+       color to the square. Ignores the mouse so hovering reaches the square. */
+    .input-value {
+      font-size: 22px;
+      fill: #111111;
+      text-anchor: middle;        /* center horizontally on x */
+      dominant-baseline: central; /* center vertically on y */
+      pointer-events: none;
+    }
+
+    .input-value.on {
+      fill: #ffffff;
+    }
+
     /* ---------- Input image (3x3 one-bit pixels) ---------- */
     /* Pixel borders match the input squares' blue outline. */
     .pixel {
@@ -102,7 +116,7 @@
     }
 
     .output-text {
-      font-size: 32px;
+      font-size: 26px;
       fill: #1d6b40;
       text-anchor: middle;        /* center horizontally on x */
       dominant-baseline: central; /* center vertically on y */
@@ -187,6 +201,39 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
+      padding: 2px 4px;
+      border-radius: 6px;
+    }
+
+    /* ---------- Mouseover highlighting ----------
+       Hovering a pixel, input square, weight arrow or slider highlights all
+       four for that input. Highlight color: #f5a623 (also HIGHLIGHT_COLOR in
+       the script, used for the arrow halos). */
+    .slider-column.highlighted {
+      background: rgba(245, 166, 35, 0.45);
+    }
+
+    /* Outline drawn over a pixel or input square; ignores the mouse so clicks
+       still reach the pixel underneath. */
+    .highlight-outline {
+      fill: none;
+      stroke: #f5a623;
+      stroke-width: 5;
+      pointer-events: none;
+    }
+
+    /* Wider halo line drawn behind a weight arrow. */
+    .arrow-halo {
+      stroke: #f5a623;
+      fill: none;
+    }
+
+    /* Invisible, wide line over each arrow, so thin arrows are easy to hover.
+       pointer-events: stroke makes the transparent stroke still catch the mouse. */
+    .arrow-hit {
+      stroke: transparent;
+      stroke-width: 16;
+      pointer-events: stroke;
     }
 
     /* Vertical sliders: writing-mode turns the range input on its side, and
@@ -236,6 +283,218 @@
     .action-button:hover {
       background: #1f66b8;
     }
+
+    /* ---------- Math panel ----------
+       Two parts side by side:
+         left:  the preactivation as column addition (grid), at the bottom
+         right: the activation function, after a green divider, centered
+                vertically */
+    /* The panel is only as wide as its contents (fit-content), pushed to the
+       right edge of its foreignObject (margin-left: auto), so its right edge
+       still lines up with the output box. Its parts have fixed widths (below),
+       so the panel doesn't change width as the numbers change. */
+    .math-panel {
+      box-sizing: border-box;
+      width: fit-content;
+      margin-left: auto;
+      height: 100%;
+      padding: 8px 14px;
+      border-radius: 16px;
+      background: #f1f1f1;
+      border: 2.5px solid #7a7a7a;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 19px;
+      line-height: 22px;
+      color: #1b4f8a;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      font-variant-numeric: tabular-nums;  /* equal-width digits line up */
+      position: relative;  /* so the curve overlay can be placed over it */
+    }
+
+    /* SVG laid over the whole panel (inside its border) for the curve that
+       connects the weighted sum to the activation formula. Positioned
+       absolutely, so it doesn't affect the panel's layout, and ignores the
+       mouse so hovering still reaches the table underneath. */
+    .math-link-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    /* Dotted, half-opacity line whose dots march from the weighted sum toward
+       the activation formula.
+         - stroke-dasharray "0 6" draws zero-length dashes every 6px; with
+           round line caps, each zero-length dash shows as a round dot.
+         - The animation shifts the pattern along the line by one full
+           repeat (6px) per cycle, so the loop is seamless. A negative offset
+           moves the dots forward, from the path's start toward its end. */
+    .math-link {
+      fill: none;
+      stroke: #555555;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-dasharray: 0 6;
+      opacity: 0.5;
+      animation: math-link-march 0.6s linear infinite;
+    }
+
+    @keyframes math-link-march {
+      to { stroke-dashoffset: -6; }
+    }
+
+    /* Respect the viewer's "reduce motion" setting: keep the dots, stop the
+       marching. */
+    @media (prefers-reduced-motion: reduce) {
+      .math-link { animation: none; }
+    }
+
+    /* Activation function part: name, formula, then f(z) = result. Stretches
+       to the full panel height so its divider runs top to bottom; content is
+       centered vertically. */
+    .activation-math {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-left: 12px;
+      border-left: 2px solid #2ca25f;
+      color: #1d6b40;
+      text-align: center;
+      white-space: nowrap;
+      width: 8.5em; /* fits the widest formula, e.g. "1 / (1 + e^18.00)" */
+    }
+
+    /* The weighted sum (z) is blue in both places it appears: as the total
+       of the addition table and inside the activation formula. The one in
+       the formula is bold (700); the total is semibold (600, via
+       .math-total). */
+    .math-total .math-value,
+    .act-z {
+      color: #2b7bd6;
+    }
+
+    .act-z {
+      font-weight: 700;
+    }
+
+    /* The space below the name holds the connecting line's top run. */
+    .act-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .act-value {
+      font-size: 24px;
+      line-height: 28px;
+      font-weight: 600;
+    }
+
+    /* Preactivation part: a grid with six columns, in order:
+         row number | x | "×" | w | "=" | product
+       Rows: header, one per input, then the sum row
+         "weighted sum" (spans columns 1-4) | "=" | total
+
+       SPACING. Every horizontal gap comes from just two settings:
+         --op-gap     space on EACH side of "×" and "="
+         --index-gap  space between the row number and x
+       There is no other padding and no fixed column width, so no hidden
+       leftover space. This works because every value has a constant width:
+         - x is always one digit;
+         - weights and products are drawn with an invisible minus sign when
+           positive (class math-pad), so "−2.0" and " 1.3" are equally wide
+           and their decimal points line up. (So a positive value shows a
+           blank where its minus sign would be.)
+         - the total is drawn with invisible characters AFTER it, so it
+           always starts right after its "=", but its width stays constant
+           and the panel doesn't change size as it changes.
+       The row number column is flexible (1fr): if "weighted sum" is wider
+       than columns 1-4, the extra width becomes indent on the far left
+       instead of stretching the other gaps. */
+    .math-grid {
+      --op-gap: 8px;
+      --index-gap: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto auto;
+    }
+
+    .math-cell,
+    .math-head {
+      padding: 1px 0;
+      text-align: right;
+    }
+
+    .math-head {
+      padding-bottom: 2px;
+    }
+
+    .math-index {
+      color: #7f9cc0;   /* muted, so the numbers read as row labels */
+      padding-right: var(--index-gap);
+    }
+
+    .math-op {
+      text-align: center;
+      padding: 1px var(--op-gap);
+    }
+
+    /* Products (and their header) start right after "="; their constant
+       width keeps the decimal points lined up. */
+    .math-product {
+      text-align: left;
+    }
+
+    /* Invisible placeholder characters that keep values a constant width. */
+    .math-pad {
+      visibility: hidden;
+    }
+
+    /* Round only the outer ends of a highlighted row's band. */
+    .math-cell.highlighted {
+      background: rgba(245, 166, 35, 0.45);
+    }
+    .math-index.highlighted {
+      border-radius: 4px 0 0 4px;
+    }
+    .math-product.highlighted {
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Sum row: line above; larger than the rows above, since the sum matters
+       more than the trace. Its "=" uses the same column (and gaps) as the
+       rows' "=", so they line up exactly. */
+    .math-sum-label,
+    .math-sum-op,
+    .math-total {
+      border-top: 1.5px solid #1b4f8a;
+      margin-top: 3px;
+      padding-top: 3px;
+      font-size: 24px;
+      line-height: 28px;
+      white-space: nowrap;
+    }
+
+    .math-sum-label {
+      grid-column: 1 / 5;
+      text-align: right;
+    }
+
+    .math-sum-op {
+      text-align: center;
+      padding-left: var(--op-gap);
+      padding-right: var(--op-gap);
+    }
+
+    .math-total {
+      font-weight: 600;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -276,10 +535,13 @@
     -->
     <g id="content">
       <g id="pixelLinksLayer"></g>
+      <g id="haloLayer"></g>
       <g id="weightsLayer"></g>
+      <g id="arrowHitLayer"></g>
       <g id="linksLayer"></g>
       <g id="inputsLayer"></g>
       <g id="imageLayer"></g>
+      <g id="highlightLayer"></g>
       <g id="neuronLayer"></g>
       <g id="outputLayer"></g>
       <g id="panelsLayer"></g>
@@ -301,10 +563,11 @@
     const BOX_SIZE      = 44;   // width/height of each input square
     const BOX_RADIUS    = 0;    // corner rounding of the squares (0 = sharp)
 
-    const OUTPUT_LENGTH = 300;  // length of the output arrow (to its tip)
-    const OUTPUT_BOX_W  = 124;  // output value box, placed at the arrow's tip
-    const OUTPUT_BOX_H  = 60;
+    const OUTPUT_LENGTH = 375;  // length of the output arrow (to its tip)
+    const OUTPUT_BOX_W  = 220;  // output value box, placed at the arrow's tip
+    const OUTPUT_BOX_H  = 96;   // tall enough for two lines (X vs O task)
     const OUTPUT_BOX_RADIUS = 10;
+    const OUTPUT_LINE_GAP   = 36;  // distance between the two text lines
 
     // How far an arrowhead's tip extends past the end of its line. The markers
     // use refX="3", so the tip sits 7 marker units past the line's end; each
@@ -316,8 +579,9 @@
     const ARROW_TIP_OFFSET = 7 * 1.5;
 
     // Control panels: weights panel centered below the neuron, activation
-    // panel centered above it. Both share these dimensions.
-    const PANEL_GAP       = 65;   // vertical gap between neuron and each panel
+    // panel centered above it. Both share these dimensions. Vertically, the
+    // weights panel's bottom lines up with the bottom input square's bottom,
+    // and the activation panel's top with the top input square's top.
     const SLIDER_COLUMN_W = 30;   // horizontal space per slider
     const PANEL_PADDING   = 12;   // matches .control-panel padding in the CSS
     const PANEL_W = NUM_INPUTS * SLIDER_COLUMN_W + 2 * PANEL_PADDING;
@@ -346,6 +610,9 @@
       3, 4, 5,
       8, 7, 6,
     ];
+    // The reverse lookup: INPUT_TO_PIXEL[i] is the pixel feeding input square i.
+    const INPUT_TO_PIXEL = [];
+    PIXEL_TO_INPUT.forEach((i, p) => { INPUT_TO_PIXEL[i] = p; });
     const IMAGE_ROWS = 3;
     const IMAGE_COLS = 3;
     const IMAGE_SIZE = IMAGE_COLS * BOX_SIZE;  // width/height of the whole grid
@@ -358,9 +625,16 @@
 
     // Activation choices shown in the activation panel. Both are plotted over
     // the full preactivation range (x); each has its own output range (y).
+    // applied(zText) returns the formula (HTML) with the weighted sum filled
+    // in, shown in the math panel.
     const ACTIVATIONS = [
-      { id: "sigmoid", label: "Sigmoid", f: x => 1 / (1 + Math.exp(-x)), yMin: 0, yMax: 1 },
-      { id: "relu",    label: "ReLU",    f: x => Math.max(0, x),          yMin: 0, yMax: Z_MAX },
+      { id: "sigmoid", label: "Sigmoid", f: x => 1 / (1 + Math.exp(-x)), yMin: 0, yMax: 1,
+        // e^-z; for a negative z the two minus signs cancel, e.g. e^1.80.
+        // The value is wrapped in an "act-z" span so the connecting line in
+        // the math panel can find it.
+        applied: zText => `1 / (1 + <i>e</i><sup><span class="act-z">${zText.startsWith("−") ? zText.slice(1) : "−" + zText}</span></sup>)` },
+      { id: "relu",    label: "ReLU",    f: x => Math.max(0, x),          yMin: 0, yMax: Z_MAX,
+        applied: zText => `max(0, <span class="act-z">${zText}</span>)` },
     ];
     const PLOT_Y_PAD   = 0.1;  // extra space above/below the y range, as a fraction of it
     const PLOT_SIZE    = 100;  // width/height of each activation plot
@@ -460,6 +734,23 @@
       weightLines[i].style.stroke = color;
       weightArrowHeads[i].setAttribute("fill", color);
       weightSliders[i].style.accentColor = color;
+      haloLines[i].style.strokeWidth = weightToStroke(weights[i]) + 2 * HALO_EXTRA;
+    }
+
+    // Show or hide the highlight for input i: its pixel and input-square
+    // outlines, its arrow halo, and its slider column background.
+    function setHighlight(i, on) {
+      const display = on ? "" : "none";
+      for (const outline of highlightOutlines[i]) outline.style.display = display;
+      haloLines[i].style.display = display;
+      sliderColumns[i].classList.toggle("highlighted", on);
+      for (const cell of mathCells[i]) cell.classList.toggle("highlighted", on);
+    }
+
+    // Make an element highlight input i while the mouse is over it.
+    function addHoverHighlight(el, i) {
+      el.addEventListener("mouseenter", () => setHighlight(i, true));
+      el.addEventListener("mouseleave", () => setHighlight(i, false));
     }
 
     // Helper: create an SVG element with a set of attributes.
@@ -479,6 +770,9 @@
     const linksLayer   = document.getElementById("linksLayer");
     const imageLayer   = document.getElementById("imageLayer");
     const pixelLinksLayer = document.getElementById("pixelLinksLayer");
+    const haloLayer       = document.getElementById("haloLayer");
+    const arrowHitLayer   = document.getElementById("arrowHitLayer");
+    const highlightLayer  = document.getElementById("highlightLayer");
 
     // Weight arrows, their arrowheads and their sliders, kept so a weight
     // change can update all three (see updateWeightDisplay).
@@ -487,8 +781,46 @@
     const weightSliders    = [];
     const defs = document.querySelector("#diagram defs");
 
+    // Highlight elements, indexed by input square (see setHighlight).
+    const HIGHLIGHT_COLOR = "#f5a623";
+    const HALO_EXTRA = 3;          // how far the halo extends beyond the arrow
+    const haloLines = [];          // halo line behind each arrow
+    const highlightOutlines = [];  // [pixel outline, input-square outline] per input
+    const sliderColumns = [];      // slider + label container per weight
+    for (let i = 0; i < NUM_INPUTS; i++) highlightOutlines.push([]);
+
+    // Shared arrowhead for the halos: a copy of a weight arrow's 15 x 15 head,
+    // enlarged so it sticks out by HALO_EXTRA evenly on all three sides. A
+    // triangle grown evenly on all sides is the same triangle scaled about
+    // its incenter (the point equally far from all three sides), so:
+    //   r     = the head's inradius = area / half-perimeter
+    //   scale = (r + HALO_EXTRA) / r
+    // and the halo is positioned so both heads share that incenter.
+    // Distances below are in diagram units, measured along the arrow from the
+    // end of the line (the regular head's base is 3 marker units x 1.5 behind it).
+    const HEAD_SIZE   = 15;
+    const headSlant   = Math.hypot(HEAD_SIZE, HEAD_SIZE / 2);
+    const headInradius = (HEAD_SIZE * HEAD_SIZE / 2) / ((HEAD_SIZE + 2 * headSlant) / 2);
+    const headBase    = -3 * (HEAD_SIZE / 10);           // regular head's base
+    const headCenter  = headBase + headInradius;          // incenter position
+    const haloSize    = HEAD_SIZE * (headInradius + HALO_EXTRA) / headInradius;
+    const haloScale   = haloSize / 10;                    // diagram units per marker unit
+    const haloBase    = headCenter - (headInradius + HALO_EXTRA);
+    const haloMarker = makeSvg("marker", {
+      id: "arrowHalo",
+      viewBox: "0 0 10 10",
+      refX: -haloBase / haloScale,  // puts the halo's base at haloBase
+      refY: 5,
+      markerUnits: "userSpaceOnUse",
+      markerWidth: 10 * haloScale, markerHeight: 10 * haloScale,
+      orient: "auto",
+    });
+    haloMarker.appendChild(makeSvg("path", { d: "M0,0 L10,5 L0,10 z", fill: HIGHLIGHT_COLOR }));
+    defs.appendChild(haloMarker);
+
     // Input squares and pixels, kept so clicks can update their colors.
     const inputBoxes = [];
+    const inputTexts = [];  // value label inside each input square
     const pixelRects = [];
 
     // ---------- Inputs and weight arrows ----------
@@ -509,6 +841,31 @@
       });
       inputsLayer.appendChild(box);
       inputBoxes.push(box);
+      addHoverHighlight(box, i);
+
+      // Value label (text set by updateInputDisplay). dy nudges it up: digits
+      // have no descenders, so "central" alone leaves them looking low.
+      const valueText = makeSvg("text", {
+        class: "input-value",
+        x: INPUT_X,
+        y: cy,
+        dy: "-0.08em",
+      });
+      inputsLayer.appendChild(valueText);
+      inputTexts.push(valueText);
+
+      // Highlight outline for this input square (hidden until hovered).
+      const boxOutline = makeSvg("rect", {
+        class: "highlight-outline",
+        x: INPUT_X - BOX_SIZE / 2,
+        y: cy - BOX_SIZE / 2,
+        width: BOX_SIZE,
+        height: BOX_SIZE,
+        rx: BOX_RADIUS,
+      });
+      boxOutline.style.display = "none";
+      highlightLayer.appendChild(boxOutline);
+      highlightOutlines[i].push(boxOutline);
 
       // Weight arrow: starts at the right edge of the square and points at the
       // neuron's center. The line stops ARROW_TIP_OFFSET short of the neuron's
@@ -544,6 +901,28 @@
       });
       weightsLayer.appendChild(line);
       weightLines.push(line);
+
+      // Halo: same line in the highlight color, HALO_EXTRA wider on each side
+      // (width kept in sync by updateWeightDisplay), with a larger arrowhead.
+      // Lives in a layer behind all arrows; hidden until hovered.
+      const halo = makeSvg("line", {
+        class: "arrow-halo",
+        x1: startX, y1: startY,
+        x2: endX,   y2: endY,
+        "marker-end": "url(#arrowHalo)",
+      });
+      halo.style.display = "none";
+      haloLayer.appendChild(halo);
+      haloLines.push(halo);
+
+      // Invisible wide line on top of the arrow to catch the mouse.
+      const hit = makeSvg("line", {
+        class: "arrow-hit",
+        x1: startX, y1: startY,
+        x2: endX,   y2: endY,
+      });
+      arrowHitLayer.appendChild(hit);
+      addHoverHighlight(hit, i);
     }
 
     // ---------- Input image ----------
@@ -575,6 +954,19 @@
 
       imageLayer.appendChild(pixel);
       pixelRects.push(pixel);
+      addHoverHighlight(pixel, PIXEL_TO_INPUT[p]);
+
+      // Highlight outline for this pixel (hidden until hovered).
+      const pixelOutline = makeSvg("rect", {
+        class: "highlight-outline",
+        x: imageLeft + col * pixelW,
+        y: imageTop + row * pixelH,
+        width: pixelW,
+        height: pixelH,
+      });
+      pixelOutline.style.display = "none";
+      highlightLayer.appendChild(pixelOutline);
+      highlightOutlines[PIXEL_TO_INPUT[p]].push(pixelOutline);
 
       // Light gray line from this pixel's center to its input square's center.
       // Drawn in a layer behind both, so only the part between them shows.
@@ -596,12 +988,16 @@
       height: IMAGE_SIZE,
     }));
 
-    // Color each pixel and its input square from the current input values.
+    // Color each pixel and its input square from the current input values,
+    // and show the value (1 or 0) inside the square.
     function updateInputDisplay() {
       for (let p = 0; p < NUM_INPUTS; p++) {
+        const i = PIXEL_TO_INPUT[p];
         const isOn = (inputs[p] === 1);
         pixelRects[p].classList.toggle("on", isOn);
-        inputBoxes[PIXEL_TO_INPUT[p]].classList.toggle("on", isOn);
+        inputBoxes[i].classList.toggle("on", isOn);
+        inputTexts[i].classList.toggle("on", isOn);
+        inputTexts[i].textContent = inputs[p];
       }
     }
 
@@ -640,33 +1036,53 @@
       rx: OUTPUT_BOX_RADIUS,
     }));
 
-    // dy nudges the text up: "central" centers the font's full em box, but
-    // digits have no descenders, so they look slightly low without it.
-    const outputText = makeSvg("text", {
-      class: "output-text",
-      x: outputBoxLeft + OUTPUT_BOX_W / 2,
-      y: NEURON_Y,
-      dy: "-0.08em",
+    // Two text lines. The X vs O task uses both; counting uses only the first,
+    // moved to the box's vertical center (see updateOutput).
+    const outputLines = [0, 1].map(() => {
+      const line = makeSvg("text", {
+        class: "output-text",
+        x: outputBoxLeft + OUTPUT_BOX_W / 2,
+      });
+      outputLayer.appendChild(line);
+      return line;
     });
-    outputLayer.appendChild(outputText);
 
-    // Recompute the output and show it, rounded to two decimal places.
-    // Sigmoid never actually reaches 0 or 1, so when its rounded value shows
-    // as 0.00 or 1.00, prefix "≈" to signal that it's only approximate.
-    // Also moves the red dot on the selected activation plot.
+    // Format a probability as "= 0.94", or "≈ 1.00" / "≈ 0.00" when rounding
+    // hides that sigmoid never actually reaches 0 or 1.
+    function formatProbability(p) {
+      const text = p.toFixed(2);
+      return (text === "0.00" || text === "1.00") ? `≈ ${text}` : `= ${text}`;
+    }
+
+    // Recompute the output and show it in a task-specific form, rounded to two
+    // decimal places:
+    //   xo:    "P(X) = y" and "P(O) = 1 - y" on two lines.
+    //   count: "Count = y" on one line.
+    // Also moves the red dot on the selected activation plot and refreshes the
+    // math panel.
     function updateOutput() {
       updateActivationDots(computePreactivation());
-      let text = computeOutput().toFixed(2);
-      if (activation === "sigmoid" && (text === "0.00" || text === "1.00")) {
-        text = "≈ " + text;
+      updateMathPanel();
+      const y = computeOutput();
+
+      if (task === "xo") {
+        outputLines[0].textContent = `P(X) ${formatProbability(y)}`;
+        outputLines[1].textContent = `P(O) ${formatProbability(1 - y)}`;
+        outputLines[0].setAttribute("y", NEURON_Y - OUTPUT_LINE_GAP / 2);
+        outputLines[1].setAttribute("y", NEURON_Y + OUTPUT_LINE_GAP / 2);
+      } else {
+        outputLines[0].textContent = `Count = ${y.toFixed(2)}`;
+        outputLines[1].textContent = "";
+        outputLines[0].setAttribute("y", NEURON_Y);
       }
-      outputText.textContent = text;
     }
 
     // ---------- Weights panel ----------
     // An HTML panel inside a <foreignObject>, with one vertical slider per
     // weight.
-    const panelTop = NEURON_Y + NEURON_R + PANEL_GAP;
+    // Bottom aligned with the bottom of the last input square.
+    const inputColumnBottom = inputTop + INPUT_SPACING * (NUM_INPUTS - 1) + BOX_SIZE / 2;
+    const panelTop = inputColumnBottom - PANEL_H;
 
     const panelObject = makeSvg("foreignObject", {
       x: NEURON_X - PANEL_W / 2,
@@ -704,6 +1120,8 @@
       column.appendChild(label);
       weightsPanel.appendChild(column);
       weightSliders.push(slider);
+      sliderColumns.push(column);
+      addHoverHighlight(column, i);
     }
 
     panelObject.appendChild(weightsPanel);
@@ -751,6 +1169,267 @@
     buttonRow.appendChild(taskButton);
     buttonObject.appendChild(buttonRow);
     panelsLayer.appendChild(buttonObject);
+
+    // ---------- Math panel ----------
+    // Two parts, side by side:
+    //   left:  the preactivation as column addition: one row per input,
+    //            i    x  ×  w  =  x·w
+    //          (weights colored like their arrows), then a line and the sum.
+    //   right: after a green divider, the selected activation function, its
+    //          formula, and its value at the current weighted sum.
+    // Its right edge lines up with the output box's right edge, its left edge
+    // sits MATH_GAP right of the weights panel, its bottom lines up with the
+    // bottom of the Initialize/Train buttons, and its top sits just below the
+    // output box.
+    const MATH_TOP_GAP = 20;   // vertical gap between output box and math panel
+    const MATH_GAP     = 14;   // horizontal gap between weights panel and math panel
+    const mathRight  = outputBoxLeft + OUTPUT_BOX_W;
+    const mathLeft   = NEURON_X + PANEL_W / 2 + MATH_GAP;
+    const mathTop    = NEURON_Y + OUTPUT_BOX_H / 2 + MATH_TOP_GAP;
+    const mathBottom = panelTop + PANEL_H + BUTTON_GAP + BUTTON_H;
+
+    const mathObject = makeSvg("foreignObject", {
+      x: mathLeft,
+      y: mathTop,
+      width: mathRight - mathLeft,
+      height: mathBottom - mathTop,
+    });
+
+    const mathPanel = document.createElement("div");
+    mathPanel.className = "math-panel";
+
+    // Preactivation part (left): a CSS grid with six columns (see .math-grid
+    // in the CSS): row number, x, "×", w, "=", product.
+    const mathGrid = document.createElement("div");
+    mathGrid.className = "math-grid";
+    mathPanel.appendChild(mathGrid);
+
+    // Activation part (right), one item per line: the function's name, the
+    // formula with the weighted sum filled in, "=" (or "≈"), and the result.
+    // Contents are set in updateMathPanel, since they depend on the selected
+    // activation.
+    const activationMath = document.createElement("div");
+    activationMath.className = "activation-math";
+    const actName    = document.createElement("div");
+    const actApplied = document.createElement("div");
+    const actEquals  = document.createElement("div");
+    const actValue   = document.createElement("div");
+    actName.className  = "act-name";
+    actValue.className = "act-value";
+    activationMath.append(actName, actApplied, actEquals, actValue);
+    mathPanel.appendChild(activationMath);
+
+    // Line connecting the weighted sum to the same value inside the activation
+    // formula. It's drawn in an SVG laid over the whole panel (see
+    // .math-link-overlay); updateMathLink sets its shape.
+    const MATH_LINK_GAP        = 6;   // space between the start and the sum
+    const MATH_LINK_END_GAP    = 2;   // space between the end and the formula
+    const MATH_LINK_RISER      = 16;  // how far right of the divider it rises
+    const MATH_LINK_RADIUS     = 20;  // rounding of the two big turns
+    const MATH_LINK_END_RADIUS = 4;   // rounding of the short final turn
+    const mathLinkOverlay = makeSvg("svg", { class: "math-link-overlay" });
+    const mathLinkPath    = makeSvg("path", { class: "math-link" });
+    mathLinkOverlay.appendChild(mathLinkPath);
+    mathPanel.appendChild(mathLinkOverlay);
+
+    const mathCells = [];  // all six cells of each input's row (for highlighting)
+    const mathValues = []; // { x, w, product } value cells per input
+    let mathTotalCell;
+
+    // Helper: add one cell to the grid.
+    function addMathCell(className, html) {
+      const cell = document.createElement("div");
+      cell.className = className;
+      cell.innerHTML = html;
+      mathGrid.appendChild(cell);
+      return cell;
+    }
+
+    // Header row.
+    addMathCell("math-head", "");
+    addMathCell("math-head", "<i>x</i>");
+    addMathCell("math-head", "");
+    addMathCell("math-head", "<i>w</i>");
+    addMathCell("math-head", "");
+    addMathCell("math-head math-product", "<i>x</i>·<i>w</i>");
+
+    // One row per input square. Hovering any cell highlights the whole row
+    // (and the matching pixel, square, arrow and slider).
+    for (let i = 0; i < NUM_INPUTS; i++) {
+      const row = [
+        addMathCell("math-cell math-index", String(i + 1)),
+        addMathCell("math-cell", ""),
+        addMathCell("math-cell math-op", "×"),
+        addMathCell("math-cell", ""),
+        addMathCell("math-cell math-op", "="),
+        addMathCell("math-cell math-product", ""),
+      ];
+      for (const cell of row) addHoverHighlight(cell, i);
+      mathCells.push(row);
+      mathValues.push({ x: row[1], w: row[3], product: row[5] });
+    }
+
+    // Sum row: "weighted sum" spanning the first four columns, then "=" in
+    // the same column as the rows' "=", then the total.
+    const mathSumLabel = addMathCell("math-sum-label", "weighted sum");
+    addMathCell("math-sum-op", "=");
+    mathTotalCell = addMathCell("math-total", "");
+
+    mathObject.appendChild(mathPanel);
+    panelsLayer.appendChild(mathObject);
+
+    // Format a number to a fixed number of decimals, using a true minus sign
+    // and avoiding "-0.0" for tiny negative values.
+    function formatNumber(v, decimals) {
+      let text = v.toFixed(decimals);
+      if (Number(text) === 0) text = (0).toFixed(decimals);
+      return text.replace("-", "−");
+    }
+
+    // Widen the table's gaps so the rows span the same width as the
+    // "weighted sum" label below them. --op-gap and --index-gap (set in the
+    // CSS) are scaled up by the same factor, so their proportions, the equal
+    // spacing around "×" and "=", and the alignment of the "=" signs are all
+    // kept. Runs once after the first update (the cells must have content to
+    // be measured); all values have constant widths, so it never needs
+    // redoing.
+    function fitMathSpacing() {
+      // Width of a cell's text alone (not the cell, which may be stretched).
+      const textWidth = el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect().width;
+      };
+      const [indexCell, xCell, timesCell, wCell] = mathCells[0];
+
+      // All widths are measured on screen, in screen pixels: the diagram is
+      // scaled to fit the window, so CSS pixels are converted using
+      // screenPerCss (measured from the "×" cell, whose padding is --op-gap).
+      const style   = getComputedStyle(mathGrid);
+      const baseOp  = parseFloat(style.getPropertyValue("--op-gap"));
+      const baseIdx = parseFloat(style.getPropertyValue("--index-gap"));
+      const opGap   = (timesCell.getBoundingClientRect().width - textWidth(timesCell)) / 2;
+      const screenPerCss = opGap / baseOp;
+
+      // Columns 1-4 hold: row number, index gap, x, op gap, "×", op gap, w.
+      // Find the scale that makes them exactly as wide as the label.
+      const label   = textWidth(mathSumLabel);
+      const content = textWidth(indexCell) + textWidth(xCell) +
+                      textWidth(timesCell) + textWidth(wCell);
+      const gaps    = (baseIdx + 2 * baseOp) * screenPerCss;
+      const scale   = Math.max(1, (label - content) / gaps);
+
+      if (verbose) console.log(`fitMathSpacing: gaps scaled by ${scale.toFixed(3)}`);
+
+      mathGrid.style.setProperty("--op-gap", `${baseOp * scale}px`);
+      mathGrid.style.setProperty("--index-gap", `${baseIdx * scale}px`);
+      updateMathLink();  // the layout changed, so redraw the connecting curve
+    }
+
+    // Redraw the line from the weighted sum's value to the same value inside
+    // the activation formula (the "act-z" span). Its route:
+    //   1. right, out of the sum;
+    //   2. up, just right of the green divider;
+    //   3. right, in the gap between the function name and the formula;
+    //   4. a short turn down, ending just above the value in the formula.
+    // Called after every math-panel update, since the value's position in
+    // the formula changes as the formula's width changes.
+    function updateMathLink() {
+      const totalValue = mathTotalCell.querySelector(".math-value");
+      const formula    = actApplied.firstElementChild;
+      const formulaZ   = actApplied.querySelector(".act-z");
+      if (!totalValue || !formula || !formulaZ || mathPanel.offsetWidth === 0) return;
+
+      // Screen positions are converted into the panel's own CSS pixels (the
+      // overlay's coordinates): the diagram is scaled on screen, and the
+      // overlay starts inside the panel's border (clientLeft/clientTop).
+      const panelRect = mathPanel.getBoundingClientRect();
+      const scale = panelRect.width / mathPanel.offsetWidth;
+      const toLocalX = x => (x - panelRect.left) / scale - mathPanel.clientLeft;
+      const toLocalY = y => (y - panelRect.top) / scale - mathPanel.clientTop;
+
+      const sum     = totalValue.getBoundingClientRect();
+      const name    = actName.getBoundingClientRect();
+      const form    = formula.getBoundingClientRect();
+      const z       = formulaZ.getBoundingClientRect();
+      const divider = activationMath.getBoundingClientRect().left;
+
+      const startX = toLocalX(sum.right) + MATH_LINK_GAP;
+      const startY = toLocalY((sum.top + sum.bottom) / 2);
+      const riserX = toLocalX(divider) + MATH_LINK_RISER;
+      const topY   = toLocalY((name.bottom + form.top) / 2);  // between name and formula
+      const endX   = toLocalX((z.left + z.right) / 2);       // above the value's center
+      const endY   = toLocalY(z.top) - MATH_LINK_END_GAP;
+
+      // Straight segments joined by rounded corners. Each corner is a
+      // quadratic Bezier ("Q") whose control point is the sharp corner, so the
+      // line bends smoothly from one direction to the next.
+      const r  = MATH_LINK_RADIUS;
+      const r2 = MATH_LINK_END_RADIUS;
+      mathLinkPath.setAttribute("d", [
+        `M ${startX} ${startY}`,
+        `H ${riserX - r}`,                                   // 1. right
+        `Q ${riserX} ${startY} ${riserX} ${startY - r}`,     //    turn up
+        `V ${topY + r}`,                                     // 2. up
+        `Q ${riserX} ${topY} ${riserX + r} ${topY}`,         //    turn right
+        `H ${endX - r2}`,                                    // 3. right
+        `Q ${endX} ${topY} ${endX} ${topY + r2}`,            //    short turn down
+        `V ${endY}`,                                         // 4. down
+      ].join(" "));
+    }
+
+    // Prefix a non-negative number with an invisible minus sign, so positive
+    // and negative values are equally wide and line up by decimal point.
+    function withSignSlot(text) {
+      return text.startsWith("−") ? text : `<span class="math-pad">−</span>${text}`;
+    }
+
+    // Follow a number with invisible copies of whatever characters it's
+    // missing compared with the widest possible value (e.g. "1.80" vs
+    // "−18.00" gets an invisible "−1" after it), so its width never changes
+    // but it still starts right where the cell starts. The visible part is
+    // wrapped in a "math-value" span so its own edges can be measured.
+    function withTrailingPad(text, widest) {
+      let missing = "";
+      if (!text.startsWith("−")) missing += "−";
+      const intDigits = text.replace("−", "").split(".")[0].length;
+      const widestDigits = widest.replace("−", "").split(".")[0].length;
+      missing += "0".repeat(Math.max(0, widestDigits - intDigits));
+      const value = `<span class="math-value">${text}</span>`;
+      return missing ? `${value}<span class="math-pad">${missing}</span>` : value;
+    }
+
+    // Refresh every value in the math panel from the current inputs and
+    // weights. (Rounded products may not add up exactly to the rounded total.)
+    function updateMathPanel() {
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        const x = inputs[INPUT_TO_PIXEL[i]];
+        const w = weights[i];
+        const cells = mathValues[i];
+        cells.x.textContent = x;
+        cells.w.innerHTML = withSignSlot(formatNumber(w, 1));
+        cells.w.style.color = weightToColor(w);
+        cells.product.innerHTML = withSignSlot(formatNumber(x * w, 1));
+      }
+      const z = computePreactivation();
+      mathTotalCell.innerHTML = withTrailingPad(formatNumber(z, 2), "−18.00");
+
+      // Activation part. Sigmoid results use formatProbability, so a value
+      // that rounds to 0.00 or 1.00 shows "≈" like the output box does; its
+      // "≈ 0.00" / "= 0.05" text is split into the sign and the number.
+      const act = ACTIVATIONS.find(a => a.id === activation);
+      const y = act.f(z);
+      const result = (act.id === "sigmoid") ? formatProbability(y)
+                                            : `= ${formatNumber(y, 2)}`;
+      const [sign, number] = result.split(" ");
+      actName.textContent  = act.label;
+      // (Wrapped in a span so the formula's own left edge can be measured.)
+      actApplied.innerHTML = `<span>${act.applied(formatNumber(z, 2))}</span>`;
+      actEquals.textContent = sign;
+      actValue.textContent  = number;
+
+      updateMathLink();
+    }
 
     // Set every weight to a random value, uniform between -W_MAX and +W_MAX,
     // rounded to the slider's step. Updates sliders, arrows and output.
@@ -891,7 +1570,8 @@
     // ---------- Activation panel ----------
     // Same size as the weights panel, centered above the neuron. Holds one
     // clickable plot per activation function; the selected one is outlined.
-    const activationPanelTop = NEURON_Y - NEURON_R - PANEL_GAP - PANEL_H;
+    // Top aligned with the top of the first input square.
+    const activationPanelTop = inputTop - BOX_SIZE / 2;
 
     const activationObject = makeSvg("foreignObject", {
       x: NEURON_X - PANEL_W / 2,
@@ -1051,6 +1731,7 @@
     // Random weights and a fresh training set on load (this also computes and
     // shows the output).
     initialize();
+    fitMathSpacing();
   </script>
 
 </body>
