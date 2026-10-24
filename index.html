@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>An Artificial Neuron</title>
+  <title>The Artificial Neuron</title>
+  <!-- TEMPORARY: font trial, loaded from Google Fonts (needs internet).
+       Once the font is final, embed it in the file so the page works offline. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap">
   <style>
     /* ---------- Page layout ---------- */
     body {
       margin: 0;
       padding: 16px;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       background: #ffffff;
       color: #222;
     }
@@ -17,7 +20,14 @@
     h1 {
       text-align: center;
       font-weight: 600;
-      margin: 8px 0 16px;
+      font-size: 55px;
+      /* Fixed line height, so a larger font spills into the margins instead
+         of pushing the diagram down. To move the title without moving the
+         diagram, shift space between the top and bottom margins (keep their
+         sum at 24px). */
+      line-height: 40px;
+      color: #444444;
+      margin: 24px 0 0;
     }
 
     /* The diagram scales to fit the window width, up to a maximum size. */
@@ -27,7 +37,6 @@
       max-width: 1600px;
       height: auto;
       margin: 0 auto;
-      background: #eeeeee;  /* TEMPORARY: shows the viewBox boundaries */
     }
 
     /* ---------- Diagram elements ---------- */
@@ -134,7 +143,7 @@
       align-items: flex-end;
       padding: 12px;
       border-radius: 16px;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
     .weights-panel {
@@ -271,7 +280,7 @@
     .action-button {
       flex: 1;
       font: inherit;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       font-size: 16px;
       color: #ffffff;
       background: #2b7bd6;
@@ -302,8 +311,8 @@
       border-radius: 16px;
       background: #f1f1f1;
       border: 2.5px solid #7a7a7a;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 19px;
+      font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 17.5px;
       line-height: 22px;
       color: #1b4f8a;
       display: flex;
@@ -385,13 +394,13 @@
 
     /* The space below the name holds the connecting line's top run. */
     .act-name {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       margin-bottom: 18px;
     }
 
     .act-value {
-      font-size: 24px;
+      font-size: 22px;
       line-height: 28px;
       font-weight: 600;
     }
@@ -475,7 +484,7 @@
       border-top: 1.5px solid #1b4f8a;
       margin-top: 3px;
       padding-top: 3px;
-      font-size: 24px;
+      font-size: 22px;
       line-height: 28px;
       white-space: nowrap;
     }
@@ -499,7 +508,7 @@
 </head>
 <body>
 
-  <h1>An Artificial Neuron</h1>
+  <h1>The Artificial Neuron</h1>
 
   <!--
     The diagram is drawn in a fixed 1600 x 800 coordinate system (the viewBox).
@@ -542,8 +551,8 @@
       <g id="inputsLayer"></g>
       <g id="imageLayer"></g>
       <g id="highlightLayer"></g>
-      <g id="neuronLayer"></g>
       <g id="outputLayer"></g>
+      <g id="neuronLayer"></g>
       <g id="panelsLayer"></g>
     </g>
   </svg>
@@ -1058,6 +1067,8 @@
     // decimal places:
     //   xo:    "P(X) = y" and "P(O) = 1 - y" on two lines.
     //   count: "Count = y" on one line.
+    // If the selected activation isn't the task's own, the labels would be
+    // misleading, so just the bare number is shown.
     // Also moves the red dot on the selected activation plot and refreshes the
     // math panel.
     function updateOutput() {
@@ -1065,7 +1076,11 @@
       updateMathPanel();
       const y = computeOutput();
 
-      if (task === "xo") {
+      if (activation !== TASKS[task].activation) {
+        outputLines[0].textContent = y.toFixed(2);
+        outputLines[1].textContent = "";
+        outputLines[0].setAttribute("y", NEURON_Y);
+      } else if (task === "xo") {
         outputLines[0].textContent = `P(X) ${formatProbability(y)}`;
         outputLines[1].textContent = `P(O) ${formatProbability(1 - y)}`;
         outputLines[0].setAttribute("y", NEURON_Y - OUTPUT_LINE_GAP / 2);
@@ -1291,9 +1306,14 @@
     // CSS) are scaled up by the same factor, so their proportions, the equal
     // spacing around "×" and "=", and the alignment of the "=" signs are all
     // kept. Runs once after the first update (the cells must have content to
-    // be measured); all values have constant widths, so it never needs
-    // redoing.
+    // be measured); all values have constant widths, so it only needs redoing
+    // if the font changes (e.g. once a web font finishes loading).
     function fitMathSpacing() {
+      // Start from the CSS base gaps, not a previous run's scaled ones.
+      mathGrid.style.removeProperty("--op-gap");
+      mathGrid.style.removeProperty("--index-gap");
+
+      // Width of a cell's text alone (not the cell, which may be stretched).
       // Width of a cell's text alone (not the cell, which may be stretched).
       const textWidth = el => {
         const range = document.createRange();
@@ -1661,7 +1681,10 @@
       button.appendChild(makeActivationPlot(act));
       button.appendChild(label);
 
+      // Training always uses the task's activation, so choosing a different
+      // one pauses training to keep the display honest.
       button.addEventListener("click", () => {
+        if (isTraining && act.id !== TASKS[task].activation) toggleTraining();
         activation = act.id;
         updateActivationSelection();
         updateOutput();
@@ -1732,6 +1755,10 @@
     // shows the output).
     initialize();
     fitMathSpacing();
+
+    // Text widths change when the web font arrives, so refit the math table
+    // (and redraw its connecting line) once all fonts have loaded.
+    document.fonts.ready.then(fitMathSpacing);
   </script>
 
 </body>
