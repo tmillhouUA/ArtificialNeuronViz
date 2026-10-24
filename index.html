@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>An Artificial Neuron</title>
+  <style>
+    /* ---------- Page layout ---------- */
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #ffffff;
+      color: #222;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 600;
+      margin: 8px 0 16px;
+    }
+
+    /* The diagram scales to fit the window width, up to a maximum size. */
+    #diagram {
+      display: block;
+      width: 100%;
+      max-width: 1600px;
+      height: auto;
+      margin: 0 auto;
+      background: #eeeeee;  /* TEMPORARY: shows the viewBox boundaries */
+    }
+
+    /* ---------- Diagram elements ---------- */
+    /* Input squares mirror their pixel: white = 0, black ("on") = 1. */
+    .input-box {
+      fill: #ffffff;
+      stroke: #2b7bd6;
+      stroke-width: 2.5;
+    }
+
+    .input-box.on {
+      fill: #111111;
+    }
+
+    /* ---------- Input image (3x3 one-bit pixels) ---------- */
+    /* Pixel borders match the input squares' blue outline. */
+    .pixel {
+      fill: #ffffff;
+      stroke: #2b7bd6;
+      stroke-width: 2.5;
+      cursor: pointer;
+    }
+
+    .pixel.on {
+      fill: #111111;
+    }
+
+    /* Lines from each pixel to its input square. */
+    .pixel-link {
+      stroke: #bbbbbb;
+      stroke-width: 1.5;
+    }
+
+    .image-frame {
+      fill: none;
+      stroke: #2b7bd6;
+      stroke-width: 2.5;
+    }
+
+    /* stroke and stroke-width are set per line by the script, from the
+       weight's value (see weightToColor and weightToStroke). */
+    .weight-arrow {
+      fill: none;
+    }
+
+    /* Connectors from the control panels to the neuron. */
+    .weights-link,
+    .activation-link {
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .weights-link    { stroke: #2b7bd6; }
+    .activation-link { stroke: #2ca25f; }
+
+    .output-arrow {
+      stroke: #2ca25f;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .neuron {
+      stroke: #333;
+      stroke-width: 2;
+    }
+
+    /* Output value box at the end of the output arrow. */
+    .output-box {
+      fill: #daf0e3;
+      stroke: #2ca25f;
+      stroke-width: 2.5;
+    }
+
+    .output-text {
+      font-size: 32px;
+      fill: #1d6b40;
+      text-anchor: middle;        /* center horizontally on x */
+      dominant-baseline: central; /* center vertically on y */
+    }
+
+    /* ---------- Control panels ---------- */
+    /* The panel is an HTML <div> placed inside the SVG via <foreignObject>,
+       so it scales along with the rest of the diagram. */
+    .control-panel {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      padding: 12px;
+      border-radius: 16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .weights-panel {
+      background: #dbe9f8;
+      border: 2.5px solid #2b7bd6;
+    }
+
+    .activation-panel {
+      background: #daf0e3;
+      border: 2.5px solid #2ca25f;
+      align-items: center;
+    }
+
+    /* Each activation choice is a <button> holding a small plot and a label.
+       The button's own styling is reset so only our border shows. */
+    .activation-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      background: none;
+      border: 2.5px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .activation-option.selected {
+      border-color: #2ca25f;
+    }
+
+    .activation-diagram .plot-background {
+      fill: #ffffff;
+      stroke: #9bcfb2;
+      stroke-width: 1;
+    }
+
+    .activation-diagram .plot-axis {
+      stroke: #999;
+      stroke-width: 1;
+    }
+
+    .activation-diagram .plot-curve {
+      stroke: #2ca25f;
+      stroke-width: 2.5;
+      fill: none;
+    }
+
+    /* Marks where the current preactivation falls on the curve. */
+    .activation-diagram .plot-dot {
+      fill: #d6402b;
+    }
+
+    .activation-label {
+      height: 20px;
+      line-height: 20px;
+      font-size: 16px;
+      color: #1d6b40;
+    }
+
+    .slider-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Vertical sliders: writing-mode turns the range input on its side, and
+       direction: rtl puts the maximum at the top instead of the bottom. */
+    .slider-column input[type="range"] {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 18px;
+      height: 130px;
+      margin: 0;
+      accent-color: #2b7bd6;
+    }
+
+    /* Fixed height so labels with and without subscripts line up. */
+    .slider-label {
+      height: 20px;
+      line-height: 20px;
+      font-size: 16px;
+      color: #1b4f8a;
+    }
+
+    .slider-label sub {
+      line-height: 0;
+    }
+
+    /* ---------- Buttons below the weights panel ---------- */
+    .button-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      height: 100%;
+    }
+
+    .action-button {
+      flex: 1;
+      font: inherit;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      color: #ffffff;
+      background: #2b7bd6;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .action-button:hover {
+      background: #1f66b8;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>An Artificial Neuron</h1>
+
+  <!--
+    The diagram is drawn in a fixed 1600 x 800 coordinate system (the viewBox).
+    The browser scales that coordinate system to whatever size the SVG is
+    displayed at, so all positions below are in these "diagram units."
+  -->
+  <svg id="diagram" viewBox="0 0 1600 800" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Horizontal gradient for the neuron body: blue (left) to green (right). -->
+      <linearGradient id="neuronGradient" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#2b7bd6" />
+        <stop offset="100%" stop-color="#2ca25f" />
+      </linearGradient>
+
+      <!--
+        Arrowheads. refX="3" places the end of the line 3 units inside the
+        triangle, so the shaft stops just inside the head (see ARROW_TIP_OFFSET).
+        The output arrow's marker uses the default markerUnits="strokeWidth":
+        5 x stroke-width 3 = 15 x 15 diagram units. The weight arrows each get
+        their own marker, created by the script (so each head can match its
+        line's color), sized at a fixed 15 x 15 so heads don't grow with the
+        line's thickness.
+      -->
+      <marker id="arrowGreen" viewBox="0 0 10 10" refX="3" refY="5"
+              markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2ca25f" />
+      </marker>
+    </defs>
+
+    <!--
+      Layers, drawn in order (later groups appear on top). They sit inside a
+      "content" group that the script shifts to center the neuron.
+    -->
+    <g id="content">
+      <g id="pixelLinksLayer"></g>
+      <g id="weightsLayer"></g>
+      <g id="linksLayer"></g>
+      <g id="inputsLayer"></g>
+      <g id="imageLayer"></g>
+      <g id="neuronLayer"></g>
+      <g id="outputLayer"></g>
+      <g id="panelsLayer"></g>
+    </g>
+  </svg>
+
+  <script>
+    // ---------- Layout constants (diagram units) ----------
+    // The neuron is centered in the viewBox at the end of the script, so these
+    // positions only matter relative to each other (e.g. the gap between
+    // INPUT_X and NEURON_X), not as absolute coordinates.
+    const NEURON_X = 470;       // center of the neuron
+    const NEURON_Y = 350;
+    const NEURON_R = 70;        // radius of the neuron
+
+    const NUM_INPUTS    = 9;
+    const INPUT_X       = 25;  // center x of the input column
+    const INPUT_SPACING = 75; // vertical distance between input centers
+    const BOX_SIZE      = 44;   // width/height of each input square
+    const BOX_RADIUS    = 0;    // corner rounding of the squares (0 = sharp)
+
+    const OUTPUT_LENGTH = 300;  // length of the output arrow (to its tip)
+    const OUTPUT_BOX_W  = 124;  // output value box, placed at the arrow's tip
+    const OUTPUT_BOX_H  = 60;
+    const OUTPUT_BOX_RADIUS = 10;
+
+    // How far an arrowhead's tip extends past the end of its line. The markers
+    // use refX="3", so the tip sits 7 marker units past the line's end; each
+    // marker unit is (15 diagram units of marker size) / viewBox width 10 = 1.5
+    // diagram units. Lines are shortened by this amount so the tip lands where
+    // the line would have ended, while the shaft stops just inside the head.
+    // If you change the marker sizes (or the output arrow's stroke width),
+    // update this value.
+    const ARROW_TIP_OFFSET = 7 * 1.5;
+
+    // Control panels: weights panel centered below the neuron, activation
+    // panel centered above it. Both share these dimensions.
+    const PANEL_GAP       = 65;   // vertical gap between neuron and each panel
+    const SLIDER_COLUMN_W = 30;   // horizontal space per slider
+    const PANEL_PADDING   = 12;   // matches .control-panel padding in the CSS
+    const PANEL_W = NUM_INPUTS * SLIDER_COLUMN_W + 2 * PANEL_PADDING;
+    const PANEL_H = 180;
+
+    // Slider range and the mapping from weight to line thickness.
+    const W_MAX      = 2;     // sliders run from -W_MAX to +W_MAX
+    const W_STEP     = 0.01;
+    const MIN_STROKE = 0.5;   // line thickness when the weight is 0
+    const MAX_STROKE = 8;     // line thickness when |weight| = W_MAX
+
+    // Weight colors, as [r, g, b]: a straight blend from red (-W_MAX) to
+    // blue (+W_MAX), passing through purple at 0. (Magnitude is already shown
+    // by line thickness, so color only needs to show direction.)
+    const POSITIVE_COLOR = [43, 123, 214];   // #2b7bd6
+    const NEGATIVE_COLOR = [214, 64, 43];    // #d6402b
+
+    // Input image: a 3x3 grid of one-bit pixels to the left of the input
+    // column, centered on the neuron. Each pixel is the same size as an
+    // input square.
+    // Pixels are numbered in row-major order (left to right, top to bottom).
+    // PIXEL_TO_INPUT[p] is the input square (0 = top) that pixel p feeds. The
+    // bottom row is reversed so the gray pixel-to-input lines don't cross.
+    const PIXEL_TO_INPUT = [
+      0, 1, 2,
+      3, 4, 5,
+      8, 7, 6,
+    ];
+    const IMAGE_ROWS = 3;
+    const IMAGE_COLS = 3;
+    const IMAGE_SIZE = IMAGE_COLS * BOX_SIZE;  // width/height of the whole grid
+    const IMAGE_GAP  = 100;       // horizontal gap between grid and input column
+
+    // Range of possible preactivations: every pixel black, every weight at
+    // +W_MAX (or -W_MAX). With no bias, that's -9 to +9.
+    const Z_MAX = NUM_INPUTS * W_MAX;
+    const Z_MIN = -Z_MAX;
+
+    // Activation choices shown in the activation panel. Both are plotted over
+    // the full preactivation range (x); each has its own output range (y).
+    const ACTIVATIONS = [
+      { id: "sigmoid", label: "Sigmoid", f: x => 1 / (1 + Math.exp(-x)), yMin: 0, yMax: 1 },
+      { id: "relu",    label: "ReLU",    f: x => Math.max(0, x),          yMin: 0, yMax: Z_MAX },
+    ];
+    const PLOT_Y_PAD   = 0.1;  // extra space above/below the y range, as a fraction of it
+    const PLOT_SIZE    = 100;  // width/height of each activation plot
+    const PLOT_MARGIN  = 8;    // space between the plot's edge and its curve
+    const PLOT_SAMPLES = 60;   // points used to draw each curve (even, so x = 0 is hit)
+
+    // Training. Full-batch gradient descent on a fixed training set; one
+    // update per animation frame (~60 per second). Two tasks:
+    //   xo:    tell noisy Xs (output 1) from noisy Os (output 0), using sigmoid
+    //          and cross-entropy loss.
+    //   count: output the number of black pixels in a random black/white
+    //          image, using ReLU and squared-error loss.
+    const TASKS = {
+      xo:    { label: "X vs O",   activation: "sigmoid", learningRate: 0.3 },
+      count: { label: "Counting", activation: "relu",    learningRate: 0.05 },
+    };
+    const TRAIN_SET_SIZE = 200;  // images in the training set (either task)
+
+    // X vs O task data.
+    const BASE_X = [   // row-major pixel order, 1 = black
+      1, 0, 1,
+      0, 1, 0,
+      1, 0, 1,
+    ];
+    const BASE_O = [
+      1, 1, 1,
+      1, 0, 1,
+      1, 1, 1,
+    ];
+    const TARGET_X       = 1;    // desired output for an X
+    const TARGET_O       = 0;    // desired output for an O
+    const NOISE_SD       = 0.35; // standard deviation of per-pixel noise
+
+    // Counting task data: each pixel is black with this probability.
+    const COUNT_BLACK_PROB = 0.5;
+
+    // General-interest logging (training loss). Set true to enable.
+    const verbose = false;
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    // ---------- Model state ----------
+    // Input values, one per pixel in row-major (image) order: 1 = black,
+    // 0 = white. Default: a plus sign. Note that weights are indexed by input
+    // square, so pixel p pairs with weights[PIXEL_TO_INPUT[p]].
+    const inputs = [
+      0, 1, 0,
+      1, 1, 1,
+      0, 1, 0,
+    ];
+    // Weights start at 0 here; initializeWeights() randomizes them on load.
+    const weights = new Array(NUM_INPUTS).fill(0);
+    let activation = "sigmoid";  // id of the selected activation function
+
+    // Training set: array of { pixels, target }, made by generateTrainingSet().
+    let trainingSet = [];
+    let isTraining  = false;
+    let task = "xo";  // key into TASKS
+    let trainStepCount = 0;
+
+    // ---------- Neuron math ----------
+    // Preactivation: z = sum over pixels of (weight x input). There is no
+    // bias term: a deliberate simplification for a lay audience.
+    // Weights are indexed by input square, so look each pixel's up via
+    // PIXEL_TO_INPUT. Uses the drawn image unless another pixel array is given.
+    function computePreactivation(pixels = inputs) {
+      let z = 0;
+      for (let p = 0; p < NUM_INPUTS; p++) {
+        z += weights[PIXEL_TO_INPUT[p]] * pixels[p];
+      }
+      return z;
+    }
+
+    // Output: the selected activation function applied to the preactivation.
+    function computeOutput() {
+      const act = ACTIVATIONS.find(a => a.id === activation);
+      return act.f(computePreactivation());
+    }
+
+    // Line thickness grows with the weight's magnitude; the sign is ignored.
+    function weightToStroke(w) {
+      return MIN_STROKE + (Math.abs(w) / W_MAX) * (MAX_STROKE - MIN_STROKE);
+    }
+
+    // Line color: blend from red (w = -W_MAX) to blue (w = +W_MAX).
+    function weightToColor(w) {
+      const t = (w / W_MAX + 1) / 2;  // 0 at -W_MAX, 1 at +W_MAX
+      const rgb = NEGATIVE_COLOR.map((c, j) =>
+        Math.round(c + (POSITIVE_COLOR[j] - c) * t));
+      return `rgb(${rgb.join(", ")})`;
+    }
+
+    // Apply weight i's thickness and color to its arrow, arrowhead and slider.
+    function updateWeightDisplay(i) {
+      const color = weightToColor(weights[i]);
+      weightLines[i].style.strokeWidth = weightToStroke(weights[i]);
+      weightLines[i].style.stroke = color;
+      weightArrowHeads[i].setAttribute("fill", color);
+      weightSliders[i].style.accentColor = color;
+    }
+
+    // Helper: create an SVG element with a set of attributes.
+    function makeSvg(tag, attrs) {
+      const el = document.createElementNS(SVG_NS, tag);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, value);
+      }
+      return el;
+    }
+
+    const weightsLayer = document.getElementById("weightsLayer");
+    const inputsLayer  = document.getElementById("inputsLayer");
+    const neuronLayer  = document.getElementById("neuronLayer");
+    const outputLayer  = document.getElementById("outputLayer");
+    const panelsLayer  = document.getElementById("panelsLayer");
+    const linksLayer   = document.getElementById("linksLayer");
+    const imageLayer   = document.getElementById("imageLayer");
+    const pixelLinksLayer = document.getElementById("pixelLinksLayer");
+
+    // Weight arrows, their arrowheads and their sliders, kept so a weight
+    // change can update all three (see updateWeightDisplay).
+    const weightLines      = [];
+    const weightArrowHeads = [];
+    const weightSliders    = [];
+    const defs = document.querySelector("#diagram defs");
+
+    // Input squares and pixels, kept so clicks can update their colors.
+    const inputBoxes = [];
+    const pixelRects = [];
+
+    // ---------- Inputs and weight arrows ----------
+    // The input column is centered vertically on the neuron.
+    const inputTop = NEURON_Y - INPUT_SPACING * (NUM_INPUTS - 1) / 2;
+
+    for (let i = 0; i < NUM_INPUTS; i++) {
+      const cy = inputTop + i * INPUT_SPACING;
+
+      // Input square, centered at (INPUT_X, cy).
+      const box = makeSvg("rect", {
+        class: "input-box",
+        x: INPUT_X - BOX_SIZE / 2,
+        y: cy - BOX_SIZE / 2,
+        width: BOX_SIZE,
+        height: BOX_SIZE,
+        rx: BOX_RADIUS,
+      });
+      inputsLayer.appendChild(box);
+      inputBoxes.push(box);
+
+      // Weight arrow: starts at the right edge of the square and points at the
+      // neuron's center. The line stops ARROW_TIP_OFFSET short of the neuron's
+      // edge so the arrowhead's tip touches the edge.
+      const startX = INPUT_X + BOX_SIZE / 2;
+      const startY = cy;
+      const dx = NEURON_X - startX;
+      const dy = NEURON_Y - startY;
+      const dist = Math.hypot(dx, dy);
+      const endX = NEURON_X - (dx / dist) * (NEURON_R + ARROW_TIP_OFFSET);
+      const endY = NEURON_Y - (dy / dist) * (NEURON_R + ARROW_TIP_OFFSET);
+
+      // This arrow's own arrowhead marker, so its color can follow the weight.
+      // markerUnits="userSpaceOnUse" fixes its size at 15 x 15 diagram units.
+      const marker = makeSvg("marker", {
+        id: `arrowWeight${i}`,
+        viewBox: "0 0 10 10",
+        refX: 3, refY: 5,
+        markerUnits: "userSpaceOnUse",
+        markerWidth: 15, markerHeight: 15,
+        orient: "auto",
+      });
+      const head = makeSvg("path", { d: "M0,0 L10,5 L0,10 z" });
+      marker.appendChild(head);
+      defs.appendChild(marker);
+      weightArrowHeads.push(head);
+
+      const line = makeSvg("line", {
+        class: "weight-arrow",
+        x1: startX, y1: startY,
+        x2: endX,   y2: endY,
+        "marker-end": `url(#arrowWeight${i})`,
+      });
+      weightsLayer.appendChild(line);
+      weightLines.push(line);
+    }
+
+    // ---------- Input image ----------
+    // A 3x3 grid of clickable pixels. Clicking a pixel toggles it between
+    // black (1) and white (0); its input square changes to match.
+    const imageRight = INPUT_X - BOX_SIZE / 2 - IMAGE_GAP;
+    const imageLeft  = imageRight - IMAGE_SIZE;
+    const imageTop   = NEURON_Y - IMAGE_SIZE / 2;
+    const pixelW     = IMAGE_SIZE / IMAGE_COLS;
+    const pixelH     = IMAGE_SIZE / IMAGE_ROWS;
+
+    for (let p = 0; p < NUM_INPUTS; p++) {
+      const row = Math.floor(p / IMAGE_COLS);
+      const col = p % IMAGE_COLS;
+
+      const pixel = makeSvg("rect", {
+        class: "pixel",
+        x: imageLeft + col * pixelW,
+        y: imageTop + row * pixelH,
+        width: pixelW,
+        height: pixelH,
+      });
+
+      pixel.addEventListener("click", () => {
+        inputs[p] = 1 - inputs[p];  // toggle 0 <-> 1
+        updateInputDisplay();
+        updateOutput();
+      });
+
+      imageLayer.appendChild(pixel);
+      pixelRects.push(pixel);
+
+      // Light gray line from this pixel's center to its input square's center.
+      // Drawn in a layer behind both, so only the part between them shows.
+      pixelLinksLayer.appendChild(makeSvg("line", {
+        class: "pixel-link",
+        x1: imageLeft + (col + 0.5) * pixelW,
+        y1: imageTop + (row + 0.5) * pixelH,
+        x2: INPUT_X,
+        y2: inputTop + PIXEL_TO_INPUT[p] * INPUT_SPACING,
+      }));
+    }
+
+    // Outer frame drawn over the pixels.
+    imageLayer.appendChild(makeSvg("rect", {
+      class: "image-frame",
+      x: imageLeft,
+      y: imageTop,
+      width: IMAGE_SIZE,
+      height: IMAGE_SIZE,
+    }));
+
+    // Color each pixel and its input square from the current input values.
+    function updateInputDisplay() {
+      for (let p = 0; p < NUM_INPUTS; p++) {
+        const isOn = (inputs[p] === 1);
+        pixelRects[p].classList.toggle("on", isOn);
+        inputBoxes[PIXEL_TO_INPUT[p]].classList.toggle("on", isOn);
+      }
+    }
+
+    updateInputDisplay();
+
+    // ---------- Neuron ----------
+    neuronLayer.appendChild(makeSvg("circle", {
+      class: "neuron",
+      cx: NEURON_X,
+      cy: NEURON_Y,
+      r: NEURON_R,
+      fill: "url(#neuronGradient)",
+    }));
+
+    // ---------- Output arrow ----------
+    outputLayer.appendChild(makeSvg("line", {
+      class: "output-arrow",
+      x1: NEURON_X + NEURON_R,
+      y1: NEURON_Y,
+      x2: NEURON_X + NEURON_R + OUTPUT_LENGTH - ARROW_TIP_OFFSET,
+      y2: NEURON_Y,
+      "marker-end": "url(#arrowGreen)",
+    }));
+
+    // ---------- Output box ----------
+    // Rounded box whose left edge sits at the output arrow's tip, showing the
+    // neuron's output value.
+    const outputBoxLeft = NEURON_X + NEURON_R + OUTPUT_LENGTH;
+
+    outputLayer.appendChild(makeSvg("rect", {
+      class: "output-box",
+      x: outputBoxLeft,
+      y: NEURON_Y - OUTPUT_BOX_H / 2,
+      width: OUTPUT_BOX_W,
+      height: OUTPUT_BOX_H,
+      rx: OUTPUT_BOX_RADIUS,
+    }));
+
+    // dy nudges the text up: "central" centers the font's full em box, but
+    // digits have no descenders, so they look slightly low without it.
+    const outputText = makeSvg("text", {
+      class: "output-text",
+      x: outputBoxLeft + OUTPUT_BOX_W / 2,
+      y: NEURON_Y,
+      dy: "-0.08em",
+    });
+    outputLayer.appendChild(outputText);
+
+    // Recompute the output and show it, rounded to two decimal places.
+    // Sigmoid never actually reaches 0 or 1, so when its rounded value shows
+    // as 0.00 or 1.00, prefix "≈" to signal that it's only approximate.
+    // Also moves the red dot on the selected activation plot.
+    function updateOutput() {
+      updateActivationDots(computePreactivation());
+      let text = computeOutput().toFixed(2);
+      if (activation === "sigmoid" && (text === "0.00" || text === "1.00")) {
+        text = "≈ " + text;
+      }
+      outputText.textContent = text;
+    }
+
+    // ---------- Weights panel ----------
+    // An HTML panel inside a <foreignObject>, with one vertical slider per
+    // weight.
+    const panelTop = NEURON_Y + NEURON_R + PANEL_GAP;
+
+    const panelObject = makeSvg("foreignObject", {
+      x: NEURON_X - PANEL_W / 2,
+      y: panelTop,
+      width: PANEL_W,
+      height: PANEL_H,
+    });
+
+    const weightsPanel = document.createElement("div");
+    weightsPanel.className = "control-panel weights-panel";
+
+    for (let i = 0; i < NUM_INPUTS; i++) {
+      const column = document.createElement("div");
+      column.className = "slider-column";
+
+      const slider = document.createElement("input");
+      slider.type  = "range";
+      slider.min   = -W_MAX;
+      slider.max   = W_MAX;
+      slider.step  = W_STEP;
+      slider.value = weights[i];
+
+      const label = document.createElement("div");
+      label.className = "slider-label";
+      label.innerHTML = `<i>w</i><sub>${i + 1}</sub>`;
+
+      // Update the model (and the arrow/slider styling) as the slider moves.
+      slider.addEventListener("input", () => {
+        weights[i] = Number(slider.value);
+        updateWeightDisplay(i);
+        updateOutput();
+      });
+
+      column.appendChild(slider);
+      column.appendChild(label);
+      weightsPanel.appendChild(column);
+      weightSliders.push(slider);
+    }
+
+    panelObject.appendChild(weightsPanel);
+    panelsLayer.appendChild(panelObject);
+
+    // ---------- Initialize / Train buttons ----------
+    // A row of buttons centered below the weights panel.
+    const BUTTON_GAP = 12;  // vertical gap between weights panel and buttons
+    const BUTTON_H   = 40;
+
+    const buttonObject = makeSvg("foreignObject", {
+      x: NEURON_X - PANEL_W / 2,
+      y: panelTop + PANEL_H + BUTTON_GAP,
+      width: PANEL_W,
+      height: BUTTON_H,
+    });
+
+    const buttonRow = document.createElement("div");
+    buttonRow.className = "button-row";
+
+    const initButton = document.createElement("button");
+    initButton.type = "button";
+    initButton.className = "action-button";
+    initButton.textContent = "Initialize";
+    initButton.addEventListener("click", initialize);
+
+    // Toggles training on and off (label switches between Train and Pause).
+    const trainButton = document.createElement("button");
+    trainButton.type = "button";
+    trainButton.className = "action-button";
+    trainButton.textContent = "Train";
+    trainButton.addEventListener("click", toggleTraining);
+
+    // Switches between the training tasks; its label shows the current task.
+    // (Placeholder styling: to be refined.)
+    const taskButton = document.createElement("button");
+    taskButton.type = "button";
+    taskButton.className = "action-button";
+    taskButton.textContent = TASKS[task].label;
+    taskButton.title = "Training task (click to switch)";
+    taskButton.addEventListener("click", switchTask);
+
+    buttonRow.appendChild(initButton);
+    buttonRow.appendChild(trainButton);
+    buttonRow.appendChild(taskButton);
+    buttonObject.appendChild(buttonRow);
+    panelsLayer.appendChild(buttonObject);
+
+    // Set every weight to a random value, uniform between -W_MAX and +W_MAX,
+    // rounded to the slider's step. Updates sliders, arrows and output.
+    function initializeWeights() {
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        const raw = (Math.random() * 2 - 1) * W_MAX;
+        weights[i] = Math.round(raw / W_STEP) * W_STEP;
+        weightSliders[i].value = weights[i];
+        updateWeightDisplay(i);
+      }
+      updateOutput();
+    }
+
+    // Initialize button (and page load): pause any training, then new random
+    // weights and a fresh training set.
+    function initialize() {
+      if (isTraining) toggleTraining();  // pauses and resets the button label
+      initializeWeights();
+      generateTrainingSet();
+    }
+
+    // ---------- Training ----------
+    // Random number from a standard normal distribution (mean 0, SD 1), using
+    // the Box-Muller transform. (1 - Math.random() avoids taking log(0).)
+    function randomNormal() {
+      const u = 1 - Math.random();
+      const v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    // A noisy copy of a base image: add Gaussian noise to every pixel, then
+    // clip to the range 0-1.
+    function makeNoisyImage(base) {
+      return base.map(v => Math.min(1, Math.max(0, v + NOISE_SD * randomNormal())));
+    }
+
+    // Build the fixed training set for the current task.
+    //   xo:    half noisy Xs, half noisy Os.
+    //   count: random black/white images, each labeled with its black count.
+    function generateTrainingSet() {
+      trainingSet = [];
+      if (task === "xo") {
+        for (let n = 0; n < TRAIN_SET_SIZE / 2; n++) {
+          trainingSet.push({ pixels: makeNoisyImage(BASE_X), target: TARGET_X });
+          trainingSet.push({ pixels: makeNoisyImage(BASE_O), target: TARGET_O });
+        }
+      } else {
+        for (let n = 0; n < TRAIN_SET_SIZE; n++) {
+          const pixels = Array.from({ length: NUM_INPUTS },
+                                    () => (Math.random() < COUNT_BLACK_PROB ? 1 : 0));
+          const target = pixels.reduce((sum, v) => sum + v, 0);
+          trainingSet.push({ pixels, target });
+        }
+      }
+    }
+
+    // One step of full-batch gradient descent for the current task. Both
+    // pairings give the same simple update: each weight moves by
+    //   learning rate x average over images of (target - output) x pixel,
+    // except that with ReLU an image whose preactivation is <= 0 contributes
+    // nothing (ReLU is flat there, so it passes no gradient).
+    //   xo:    sigmoid + cross-entropy loss.
+    //   count: ReLU + squared-error loss (1/2 x (output - target)^2).
+    // Weights are clamped to the slider range afterward.
+    function trainStep() {
+      const actId = TASKS[task].activation;
+      const f = ACTIVATIONS.find(a => a.id === actId).f;
+      const step = new Array(NUM_INPUTS).fill(0);
+      let loss = 0;
+
+      for (const { pixels, target } of trainingSet) {
+        const z = computePreactivation(pixels);
+        const output = f(z);
+        let error = target - output;
+        if (actId === "relu" && z <= 0) error = 0;
+        for (let p = 0; p < NUM_INPUTS; p++) {
+          step[PIXEL_TO_INPUT[p]] += error * pixels[p];
+        }
+        if (verbose) {
+          if (actId === "sigmoid") {
+            // Cross-entropy loss; the tiny constant avoids log(0).
+            loss -= target * Math.log(output + 1e-12) +
+                    (1 - target) * Math.log(1 - output + 1e-12);
+          } else {
+            loss += 0.5 * (output - target) ** 2;
+          }
+        }
+      }
+
+      const rate = TASKS[task].learningRate;
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        const updated = weights[i] + rate * step[i] / trainingSet.length;
+        weights[i] = Math.min(W_MAX, Math.max(-W_MAX, updated));
+        weightSliders[i].value = weights[i];
+        updateWeightDisplay(i);
+      }
+      updateOutput();
+
+      trainStepCount++;
+      if (verbose && trainStepCount % 60 === 0) {
+        console.log(`step ${trainStepCount}: mean loss ${(loss / trainingSet.length).toFixed(4)}`,
+                    weights.map(w => w.toFixed(2)).join(" "));
+      }
+    }
+
+    // Animation loop: one training step per frame while training is on.
+    function trainLoop() {
+      if (!isTraining) return;
+      trainStep();
+      requestAnimationFrame(trainLoop);
+    }
+
+    // Train/Pause button. Starting training switches to the current task's
+    // activation (sigmoid for X vs O, ReLU for counting).
+    function toggleTraining() {
+      isTraining = !isTraining;
+      trainButton.textContent = isTraining ? "Pause" : "Train";
+      if (isTraining) {
+        activation = TASKS[task].activation;
+        updateActivationSelection();
+        updateOutput();
+        requestAnimationFrame(trainLoop);
+      }
+    }
+
+    // Task button: pause training, switch to the other task, build that
+    // task's training set, and select its activation. Weights are kept.
+    function switchTask() {
+      if (isTraining) toggleTraining();
+      task = (task === "xo") ? "count" : "xo";
+      taskButton.textContent = TASKS[task].label;
+      generateTrainingSet();
+      activation = TASKS[task].activation;
+      updateActivationSelection();
+      updateOutput();
+    }
+
+    // ---------- Activation panel ----------
+    // Same size as the weights panel, centered above the neuron. Holds one
+    // clickable plot per activation function; the selected one is outlined.
+    const activationPanelTop = NEURON_Y - NEURON_R - PANEL_GAP - PANEL_H;
+
+    const activationObject = makeSvg("foreignObject", {
+      x: NEURON_X - PANEL_W / 2,
+      y: activationPanelTop,
+      width: PANEL_W,
+      height: PANEL_H,
+    });
+
+    const activationPanel = document.createElement("div");
+    activationPanel.className = "control-panel activation-panel";
+
+    // Red dots marking the current preactivation on each plot, keyed by
+    // activation id. Each entry also keeps its plot's coordinate mapping.
+    const activationDots = {};
+
+    // Build a small square plot of one activation function: a white square,
+    // the x and y axes, the curve, and a (hidden) dot for the current input.
+    function makeActivationPlot(act) {
+      // Map function coordinates to plot pixels (SVG y increases downward).
+      const inner = PLOT_SIZE - 2 * PLOT_MARGIN;
+      const pad   = PLOT_Y_PAD * (act.yMax - act.yMin);
+      const yLow  = act.yMin - pad;
+      const yHigh = act.yMax + pad;
+      const toPx = x => PLOT_MARGIN + (x - Z_MIN) / (Z_MAX - Z_MIN) * inner;
+      const toPy = y => PLOT_MARGIN + (yHigh - y) / (yHigh - yLow) * inner;
+
+      const plot = makeSvg("svg", {
+        class: "activation-diagram",
+        width: PLOT_SIZE,
+        height: PLOT_SIZE,
+        viewBox: `0 0 ${PLOT_SIZE} ${PLOT_SIZE}`,
+      });
+
+      plot.appendChild(makeSvg("rect", {
+        class: "plot-background",
+        x: 0.5, y: 0.5, width: PLOT_SIZE - 1, height: PLOT_SIZE - 1, rx: 4,
+      }));
+
+      // x axis (y = 0) and y axis (x = 0), spanning the full plot.
+      plot.appendChild(makeSvg("line", {
+        class: "plot-axis", x1: 0, y1: toPy(0), x2: PLOT_SIZE, y2: toPy(0),
+      }));
+      plot.appendChild(makeSvg("line", {
+        class: "plot-axis", x1: toPx(0), y1: 0, x2: toPx(0), y2: PLOT_SIZE,
+      }));
+
+      // Curve: sample the function evenly across the preactivation range.
+      const points = [];
+      for (let i = 0; i <= PLOT_SAMPLES; i++) {
+        const x = Z_MIN + (Z_MAX - Z_MIN) * i / PLOT_SAMPLES;
+        points.push(`${toPx(x)},${toPy(act.f(x))}`);
+      }
+      plot.appendChild(makeSvg("polyline", {
+        class: "plot-curve",
+        points: points.join(" "),
+      }));
+
+      // Dot for the current preactivation; positioned by updateActivationDots.
+      const dot = makeSvg("circle", { class: "plot-dot", r: 4 });
+      plot.appendChild(dot);
+      activationDots[act.id] = { dot, toPx, toPy, f: act.f };
+
+      return plot;
+    }
+
+    // Move each plot's dot to (z, f(z)), and show only the selected one.
+    function updateActivationDots(z) {
+      for (const [id, { dot, toPx, toPy, f }] of Object.entries(activationDots)) {
+        dot.setAttribute("cx", toPx(z));
+        dot.setAttribute("cy", toPy(f(z)));
+        dot.style.display = (id === activation) ? "" : "none";
+      }
+    }
+
+    // One button per activation. Clicking selects it and moves the outline.
+    const activationButtons = [];
+
+    for (const act of ACTIVATIONS) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "activation-option";
+
+      const label = document.createElement("div");
+      label.className = "activation-label";
+      label.textContent = act.label;
+
+      button.appendChild(makeActivationPlot(act));
+      button.appendChild(label);
+
+      button.addEventListener("click", () => {
+        activation = act.id;
+        updateActivationSelection();
+        updateOutput();
+      });
+
+      activationPanel.appendChild(button);
+      activationButtons.push({ id: act.id, button });
+    }
+
+    // Outline the button whose id matches the current activation.
+    function updateActivationSelection() {
+      for (const { id, button } of activationButtons) {
+        button.classList.toggle("selected", id === activation);
+      }
+    }
+
+    updateActivationSelection();
+
+    activationObject.appendChild(activationPanel);
+    panelsLayer.appendChild(activationObject);
+
+    // ---------- Panel-to-neuron connectors ----------
+    // Each line runs from the panel's center edge toward the neuron, jogs
+    // sideways by r/2 halfway there, then continues to meet the neuron's edge.
+    // At a horizontal offset of r/2 from the center, the circle's edge is
+    // r * sqrt(3)/2 above/below the center (Pythagoras). The links layer is
+    // drawn before the neuron, so the neuron sits on top of the lines' ends.
+    const edgeOffsetY = NEURON_R * Math.sqrt(3) / 2;
+
+    // Weights link: shows that the weights feed the preactivation.
+    // Rises from the top of the weights panel and jogs LEFT.
+    const weightsLinkX    = NEURON_X - NEURON_R / 2;
+    const weightsLinkEndY = NEURON_Y + edgeOffsetY;
+    const weightsLinkJogY = (panelTop + weightsLinkEndY) / 2;
+
+    linksLayer.appendChild(makeSvg("polyline", {
+      class: "weights-link",
+      points: `${NEURON_X},${panelTop} ${NEURON_X},${weightsLinkJogY} ` +
+              `${weightsLinkX},${weightsLinkJogY} ${weightsLinkX},${weightsLinkEndY}`,
+    }));
+
+    // Activation link: descends from the bottom of the activation panel and
+    // jogs RIGHT.
+    const activationPanelBottom = activationPanelTop + PANEL_H;
+    const activationLinkX    = NEURON_X + NEURON_R / 2;
+    const activationLinkEndY = NEURON_Y - edgeOffsetY;
+    const activationLinkJogY = (activationPanelBottom + activationLinkEndY) / 2;
+
+    linksLayer.appendChild(makeSvg("polyline", {
+      class: "activation-link",
+      points: `${NEURON_X},${activationPanelBottom} ${NEURON_X},${activationLinkJogY} ` +
+              `${activationLinkX},${activationLinkJogY} ${activationLinkX},${activationLinkEndY}`,
+    }));
+
+    // ---------- Center the neuron in the viewBox ----------
+    // Shift the "content" group so the neuron's center lands on the viewBox's
+    // center. Everything else is positioned relative to the neuron.
+    const viewBox = document.getElementById("diagram").viewBox.baseVal;
+
+    const shiftX = viewBox.width  / 2 - NEURON_X;
+    const shiftY = viewBox.height / 2 - NEURON_Y;
+
+    document.getElementById("content")
+      .setAttribute("transform", `translate(${shiftX}, ${shiftY})`);
+
+    // ---------- Initial state ----------
+    // Random weights and a fresh training set on load (this also computes and
+    // shows the output).
+    initialize();
+  </script>
+
+</body>
+</html>
