@@ -699,12 +699,15 @@
     }
 
     /* Ghost thumb on each weight slider: a dashed circle where the slider
-       would move if the Learn button were pressed. Ignores the mouse. */
+       would move if the Learn button were pressed. Ignores the mouse.
+       Hidden unless the weights panel has the "show-ghosts" class, which is
+       on while the mouse is over the learning panel. */
     .slider-column {
       position: relative;
     }
 
     .ghost-thumb {
+      display: none;
       position: absolute;
       left: 50%;
       width: 14px;
@@ -715,6 +718,10 @@
       border-radius: 50%;
       opacity: 0.6;
       pointer-events: none;
+    }
+
+    .show-ghosts .ghost-thumb {
+      display: block;
     }
   </style>
 </head>
@@ -1372,7 +1379,6 @@
       // step (positioned by updateLearnPanel).
       const ghost = document.createElement("div");
       ghost.className = "ghost-thumb";
-      ghost.style.display = "none";
 
       column.appendChild(slider);
       column.appendChild(label);
@@ -1839,6 +1845,11 @@
     formulaRow.append(formulaText, learnButton);
     learnPanel.appendChild(formulaRow);
 
+    // Show the ghost thumbs on the weight sliders only while the mouse is
+    // over this panel.
+    learnPanel.addEventListener("mouseenter", () => weightsPanel.classList.add("show-ghosts"));
+    learnPanel.addEventListener("mouseleave", () => weightsPanel.classList.remove("show-ghosts"));
+
     learnObject.appendChild(learnPanel);
     panelsLayer.appendChild(learnObject);
 
@@ -1936,10 +1947,9 @@
         cells.delta.innerHTML = withSignSlot(formatNumber(deltas[i], 2));
         cells.delta.style.color = deltaColor(deltas[i]);
 
-        // Ghost thumb at the weight's new value (hidden if it wouldn't move).
+        // Ghost thumb at the weight's new value (right over the thumb when
+        // the weight wouldn't change).
         const newW = clampWeight(weights[i] + deltas[i]);
-        const moves = Math.abs(newW - weights[i]) >= W_STEP / 2;
-        ghostThumbs[i].style.display = moves ? "" : "none";
         const fromTop = (W_MAX - newW) / (2 * W_MAX);  // 0 at the top, 1 at the bottom
         ghostThumbs[i].style.top =
           `${SLIDER_TOP + SLIDER_THUMB / 2 + fromTop * (SLIDER_LENGTH - SLIDER_THUMB)}px`;
