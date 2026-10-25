@@ -140,6 +140,11 @@
       text-anchor: middle;
     }
 
+    /* "Input" and "Output" (rotated, beside the image and output box). */
+    .side-label {
+      font-size: 22px;  /* 1.5 x the other labels */
+    }
+
     /* ---------- Control panels ---------- */
     /* The panel is an HTML <div> placed inside the SVG via <foreignObject>,
        so it scales along with the rest of the diagram. */
@@ -1051,11 +1056,24 @@
     const pixelRects = [];
 
     // ---------- Inputs and weight arrows ----------
-    // The input column is centered vertically on the neuron.
-    const inputTop = NEURON_Y - INPUT_SPACING * (NUM_INPUTS - 1) / 2;
+    // The input column is centered vertically on the neuron. Its nominal top
+    // and bottom edges are what the panels line up with (activation and
+    // learning panels at the top, weights panel at the bottom).
+    const inputColumnTop    = NEURON_Y - INPUT_SPACING * (NUM_INPUTS - 1) / 2 - BOX_SIZE / 2;
+    const inputColumnBottom = NEURON_Y + INPUT_SPACING * (NUM_INPUTS - 1) / 2 + BOX_SIZE / 2;
+
+    // An SVG outline is centered on the shape's edge, so half of it sticks
+    // out past the square, while the HTML panels draw their borders inside
+    // their edges. The top square is moved down by half its outline so its
+    // outer edge meets the top panels' outer edges; the bottom square stays
+    // put, and the squares between are spaced evenly.
+    const INPUT_STROKE = 2.5;  // matches .input-box stroke-width in the CSS
+    const inputTop    = inputColumnTop + INPUT_STROKE / 2 + BOX_SIZE / 2;  // top square's center
+    const inputBottom = inputColumnBottom - BOX_SIZE / 2;                  // bottom square's center
+    const inputStep   = (inputBottom - inputTop) / (NUM_INPUTS - 1);       // center-to-center
 
     for (let i = 0; i < NUM_INPUTS; i++) {
-      const cy = inputTop + i * INPUT_SPACING;
+      const cy = inputTop + i * inputStep;
 
       // Input square, centered at (INPUT_X, cy).
       const box = makeSvg("rect", {
@@ -1202,7 +1220,7 @@
         x1: imageLeft + (col + 0.5) * pixelW,
         y1: imageTop + (row + 0.5) * pixelH,
         x2: INPUT_X,
-        y2: inputTop + PIXEL_TO_INPUT[p] * INPUT_SPACING,
+        y2: inputTop + PIXEL_TO_INPUT[p] * inputStep,
       }));
     }
 
@@ -1316,7 +1334,6 @@
     // An HTML panel inside a <foreignObject>, with one vertical slider per
     // weight.
     // Bottom aligned with the bottom of the last input square.
-    const inputColumnBottom = inputTop + INPUT_SPACING * (NUM_INPUTS - 1) + BOX_SIZE / 2;
     const panelTop = inputColumnBottom - PANEL_H;
 
     const panelObject = makeSvg("foreignObject", {
@@ -1695,7 +1712,7 @@
     const SLIDER_LENGTH = 130;      // matches the slider height in the CSS
     const SLIDER_TOP    = 2;        // matches .slider-column top padding
 
-    const learnTop    = inputTop - BOX_SIZE / 2;
+    const learnTop    = inputColumnTop;
     const learnBottom = NEURON_Y - OUTPUT_BOX_H / 2 - LEARN_BOTTOM_GAP;
 
     const learnObject = makeSvg("foreignObject", {
@@ -2084,7 +2101,7 @@
     // Same size as the weights panel, centered above the neuron. Holds one
     // clickable plot per activation function; the selected one is outlined.
     // Top aligned with the top of the first input square.
-    const activationPanelTop = inputTop - BOX_SIZE / 2;
+    const activationPanelTop = inputColumnTop;
 
     const activationObject = makeSvg("foreignObject", {
       x: NEURON_X - PANEL_W / 2,
@@ -2257,6 +2274,24 @@
     makePanelLabel("Activation Function", NEURON_X, activationPanelTop - LABEL_GAP, false);
     const learnLabel = makePanelLabel("Current Update", mathRight, learnTop - LABEL_GAP, false);
     makePanelLabel("Weights / Controls", NEURON_X, mathBottom + LABEL_GAP, true);
+    // Side labels, rotated a quarter turn and centered on the neuron's
+    // height: "Input" left of the image (reading upward), "Output" right of
+    // the output box (reading downward). Each is rotated about its anchor
+    // point, and in both cases the baseline ends up facing the box, so
+    // LABEL_GAP is measured to the baseline as for the top labels.
+    function makeSideLabel(text, x, angle) {
+      const label = makeSvg("text", {
+        class: "panel-label side-label",
+        x, y: NEURON_Y,
+        transform: `rotate(${angle}, ${x}, ${NEURON_Y})`,
+      });
+      label.textContent = text;
+      panelsLayer.appendChild(label);
+    }
+
+    makeSideLabel("Input",  imageLeft - LABEL_GAP, -90);
+    makeSideLabel("Output", outputBoxLeft + OUTPUT_BOX_W + LABEL_GAP, 90);
+
     const mathLabel  = makePanelLabel("Current Activation", mathRight, mathBottom + LABEL_GAP, true);
 
     // ---------- Center the neuron in the viewBox ----------
