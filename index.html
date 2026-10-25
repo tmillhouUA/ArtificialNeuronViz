@@ -131,6 +131,15 @@
       dominant-baseline: central; /* center vertically on y */
     }
 
+    /* Panel labels: centered above the top panels and below the bottom
+       ones, in the title's dark gray. */
+    .panel-label {
+      font-size: 18px;
+      font-weight: 600;
+      fill: #444444;
+      text-anchor: middle;
+    }
+
     /* ---------- Control panels ---------- */
     /* The panel is an HTML <div> placed inside the SVG via <foreignObject>,
        so it scales along with the rest of the diagram. */
@@ -1823,6 +1832,11 @@
     function matchLearnWidth() {
       learnPanel.style.width = `${mathPanel.offsetWidth}px`;
       learnPanel.style.marginLeft = "auto";
+
+      // Center both panels' labels on them (they share left/right edges).
+      const centerX = mathRight - mathPanel.offsetWidth / 2;
+      learnLabel.setAttribute("x", centerX);
+      mathLabel.setAttribute("x", centerX);
     }
 
     // Set the learning rate and move its slider to match.
@@ -2217,6 +2231,33 @@
       points: `${NEURON_X},${activationPanelBottom} ${NEURON_X},${activationLinkJogY} ` +
               `${activationLinkX},${activationLinkJogY} ${activationLinkX},${activationLinkEndY}`,
     }));
+
+    // ---------- Panel labels ----------
+    // Above the two top panels and below the two bottom ones (below the
+    // buttons, for the weights panel). All labels sit on their baseline; a
+    // label below is moved down by the font's cap height, so the gap is
+    // measured to the tops of its capital letters. (The "hanging" baseline
+    // sits a little above the capitals, which made those gaps look larger.)
+    // The right-hand panels' labels are centered later, in matchLearnWidth,
+    // once the math panel's width is known.
+    const LABEL_GAP = 8;             // space between a panel's edge and its label
+    const LABEL_CAP_HEIGHT = "0.7em"; // Space Grotesk's capital height
+
+    function makePanelLabel(text, x, y, below) {
+      const label = makeSvg("text", {
+        class: "panel-label",
+        x, y,
+        dy: below ? LABEL_CAP_HEIGHT : 0,
+      });
+      label.textContent = text;
+      panelsLayer.appendChild(label);
+      return label;
+    }
+
+    makePanelLabel("Activation Function", NEURON_X, activationPanelTop - LABEL_GAP, false);
+    const learnLabel = makePanelLabel("Current Update", mathRight, learnTop - LABEL_GAP, false);
+    makePanelLabel("Weights / Controls", NEURON_X, mathBottom + LABEL_GAP, true);
+    const mathLabel  = makePanelLabel("Current Activation", mathRight, mathBottom + LABEL_GAP, true);
 
     // ---------- Center the neuron in the viewBox ----------
     // Shift the "content" group so the neuron's center lands on the viewBox's
