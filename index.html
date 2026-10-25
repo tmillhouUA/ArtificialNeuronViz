@@ -371,12 +371,35 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding-left: 12px;
-      border-left: 2px solid #2ca25f;
+      padding-left: 14px;  /* 12px + the 2px a border used to take */
       color: #1d6b40;
       text-align: center;
       white-space: nowrap;
       width: 8.5em; /* fits the widest formula, e.g. "1 / (1 + e^18.00)" */
+      position: relative;  /* so the divider lines can be placed on its edge */
+    }
+
+    /* The divider: two parallel 2px lines, 5px apart, blue then green
+       (preactivation | activation). The pair (9px wide) is centered 1px
+       inside the section's left edge: -3.5px to -1.5px, then 3.5px to
+       5.5px. Absolutely positioned, so they don't affect layout. */
+    .activation-math::before,
+    .activation-math::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+    }
+
+    .activation-math::before {
+      left: -3.5px;
+      background: #2b7bd6;
+    }
+
+    .activation-math::after {
+      left: 3.5px;
+      background: #2ca25f;
     }
 
     /* The weighted sum (z) is blue in both places it appears: as the total
@@ -503,6 +526,181 @@
     .math-total {
       font-weight: 600;
       text-align: left;
+    }
+
+    /* ---------- Learning panel ----------
+       Upper right. Shows how one image would change the weights:
+         Δw = learning rate × error × input
+       Two parts side by side, then a bottom row:
+         left:   a table like the preactivation's, one row per input:
+                   i   x  ×  (rate × error)  =  Δw
+         right:  after a gray divider, the target, the learning rate, and
+                 the error and rate × error worked out
+         bottom: the rule in words, and the Learn button
+       Styled like the math panel. */
+    .learn-panel {
+      box-sizing: border-box;
+      height: 100%;
+      padding: 8px 14px;
+      border-radius: 16px;
+      background: #f1f1f1;
+      border: 2.5px solid #7a7a7a;
+      font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 19px;
+      color: #333333;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .learn-body {
+      display: flex;
+      gap: 14px;
+    }
+
+    .learn-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .learn-row.spread {
+      justify-content: space-between;
+    }
+
+    .learn-label {
+      font-weight: 600;
+    }
+
+    /* Left: the per-input table. Six columns:
+         row number | x | "×" | rate × error | "=" | Δw */
+    .learn-grid {
+      display: grid;
+      grid-template-columns: repeat(6, auto);
+      align-content: start;
+      flex: none;           /* keep its natural width; the side column flexes */
+      white-space: nowrap;
+    }
+
+    .learn-grid > div {
+      text-align: right;
+    }
+
+    .learn-grid .learn-index {
+      color: #9a9a9a;
+      padding-right: 12px;
+    }
+
+    /* Extra space between the x column and the "×" column. */
+    .learn-grid .learn-x {
+      padding-right: 12px;
+    }
+
+    .learn-grid .learn-op {
+      text-align: center;
+      padding: 0 11px;
+    }
+
+    .learn-grid .learn-head {
+      padding-bottom: 2px;
+    }
+
+    /* "rate × error" header: spans the "×" column and the one after it.
+       Zero width, so it doesn't widen those columns (its text simply
+       overflows to the right). margin-left nudges it right. */
+    .learn-grid .learn-factor-head {
+      grid-column: 3 / 5;
+      width: 0;
+      text-align: left;
+      margin-left: 16px;
+    }
+
+    /* Round only the outer ends of a highlighted row's band. */
+    .learn-grid .highlighted {
+      background: rgba(245, 166, 35, 0.45);
+    }
+    .learn-grid .learn-index.highlighted {
+      border-radius: 4px 0 0 4px;
+    }
+    .learn-grid .learn-delta.highlighted {
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Right: target, learning rate and error, after a divider. */
+    .learn-side {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-left: 14px;
+      border-left: 2px solid #b5b5b5;
+      white-space: nowrap;
+    }
+
+    /* Continuation lines of a worked calculation ("= 1 − 0.09"), indented
+       under the first line. */
+    .learn-step {
+      padding-left: 1.5em;
+    }
+
+    /* Target choice (X vs O task): two small toggle buttons. */
+    .target-option {
+      font: inherit;
+      width: 32px;
+      height: 26px;
+      padding: 0;
+      background: #ffffff;
+      color: #333333;
+      border: 2px solid #7a7a7a;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .target-option.selected {
+      background: #333333;
+      color: #ffffff;
+      border-color: #333333;
+    }
+
+    .learn-rate-slider {
+      margin: 0;
+      accent-color: #7a7a7a;
+    }
+
+    .learn-button {
+      font: inherit;
+      font-size: 16px;
+      padding: 4px 16px;
+      color: #ffffff;
+      background: #555555;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .learn-button:hover {
+      background: #333333;
+    }
+
+    /* Ghost thumb on each weight slider: a dashed circle where the slider
+       would move if the Learn button were pressed. Ignores the mouse. */
+    .slider-column {
+      position: relative;
+    }
+
+    .ghost-thumb {
+      position: absolute;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      margin-left: -9px;
+      margin-top: -9px;
+      border: 2px dashed #333333;
+      border-radius: 50%;
+      opacity: 0.6;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -703,6 +901,14 @@
     let isTraining  = false;
     let task = "xo";  // key into TASKS
     let trainStepCount = 0;
+    // Learning rate used by both Train and the learning panel's Learn button;
+    // set by the learning panel's slider and reset to the task's default when
+    // the task changes.
+    let learningRate = TASKS[task].learningRate;
+    // Target for the image on screen in the X vs O task (picked in the
+    // learning panel). In the counting task the target is simply the image's
+    // black-pixel count.
+    let xoTarget = TARGET_X;
 
     // ---------- Neuron math ----------
     // Preactivation: z = sum over pixels of (weight x input). There is no
@@ -754,6 +960,7 @@
       haloLines[i].style.display = display;
       sliderColumns[i].classList.toggle("highlighted", on);
       for (const cell of mathCells[i]) cell.classList.toggle("highlighted", on);
+      for (const cell of learnCells[i]) cell.classList.toggle("highlighted", on);
     }
 
     // Make an element highlight input i while the mouse is over it.
@@ -796,7 +1003,9 @@
     const haloLines = [];          // halo line behind each arrow
     const highlightOutlines = [];  // [pixel outline, input-square outline] per input
     const sliderColumns = [];      // slider + label container per weight
+    const learnCells = [];         // [x cell, Δw cell] per input in the learning panel
     for (let i = 0; i < NUM_INPUTS; i++) highlightOutlines.push([]);
+    const ghostThumbs = [];        // ghost thumb on each weight slider
 
     // Shared arrowhead for the halos: a copy of a weight arrow's 15 x 15 head,
     // enlarged so it sticks out by HALO_EXTRA evenly on all three sides. A
@@ -1076,6 +1285,8 @@
       updateMathPanel();
       const y = computeOutput();
 
+      updateLearnPanel();
+
       if (activation !== TASKS[task].activation) {
         outputLines[0].textContent = y.toFixed(2);
         outputLines[1].textContent = "";
@@ -1131,8 +1342,16 @@
         updateOutput();
       });
 
+      // Ghost thumb showing where this weight would move after one Learn
+      // step (positioned by updateLearnPanel).
+      const ghost = document.createElement("div");
+      ghost.className = "ghost-thumb";
+      ghost.style.display = "none";
+
       column.appendChild(slider);
       column.appendChild(label);
+      column.appendChild(ghost);
+      ghostThumbs.push(ghost);
       weightsPanel.appendChild(column);
       weightSliders.push(slider);
       sliderColumns.push(column);
@@ -1314,7 +1533,6 @@
       mathGrid.style.removeProperty("--index-gap");
 
       // Width of a cell's text alone (not the cell, which may be stretched).
-      // Width of a cell's text alone (not the cell, which may be stretched).
       const textWidth = el => {
         const range = document.createRange();
         range.selectNodeContents(el);
@@ -1451,6 +1669,266 @@
       updateMathLink();
     }
 
+    // ---------- Learning panel ----------
+    // Shows how the image on screen would change the weights in one step:
+    //   Δw = learning rate × error × x,   error = target − output
+    // (the same rule Train uses, but for this one image instead of the
+    // average over the training set). The Learn button applies it.
+    // Upper right: same left/right edges as the math panel, top aligned with
+    // the activation panel, bottom LEARN_BOTTOM_GAP above the output box.
+    const LEARN_BOTTOM_GAP = 20;
+    const LEARN_RATE_MAX   = 1;     // learning-rate slider runs 0 to this
+    const LEARN_RATE_STEP  = 0.01;
+    // Assumed size of the browser's slider thumb, used to place the ghost
+    // thumbs (the thumb's center travels the slider's length minus this).
+    // Browsers don't expose it, so it may need tuning.
+    const SLIDER_THUMB = 16;
+    const SLIDER_LENGTH = 130;      // matches the slider height in the CSS
+    const SLIDER_TOP    = 2;        // matches .slider-column top padding
+
+    const learnTop    = inputTop - BOX_SIZE / 2;
+    const learnBottom = NEURON_Y - OUTPUT_BOX_H / 2 - LEARN_BOTTOM_GAP;
+
+    const learnObject = makeSvg("foreignObject", {
+      x: mathLeft,
+      y: learnTop,
+      width: mathRight - mathLeft,
+      height: learnBottom - learnTop,
+    });
+
+    const learnPanel = document.createElement("div");
+    learnPanel.className = "learn-panel";
+
+    // Top part: the per-input table (left) and the side column (right).
+    const learnBody = document.createElement("div");
+    learnBody.className = "learn-body";
+    learnPanel.appendChild(learnBody);
+
+    // Left: one row per input, laid out like the preactivation table:
+    //   i   x  ×  (rate × error)  =  Δw
+    // Hovering a row highlights that input everywhere.
+    const learnGrid = document.createElement("div");
+    learnGrid.className = "learn-grid";
+    learnBody.appendChild(learnGrid);
+    const learnValues = [];  // { x, factor, delta } value cells per input
+
+    function addLearnCell(className, html) {
+      const cell = document.createElement("div");
+      cell.className = className;
+      cell.innerHTML = html;
+      learnGrid.appendChild(cell);
+      return cell;
+    }
+
+    // Header row. "rate × error" spans the "×" column and the column after
+    // it (positioned in the CSS).
+    addLearnCell("learn-head", "");
+    addLearnCell("learn-head learn-x", "<i>x</i>");
+    addLearnCell("learn-head learn-factor-head", "rate × error");
+    addLearnCell("learn-head", "");
+    addLearnCell("learn-head learn-delta", "Δ<i>w</i>");
+
+    for (let i = 0; i < NUM_INPUTS; i++) {
+      const row = [
+        addLearnCell("learn-index", String(i + 1)),
+        addLearnCell("learn-x", ""),
+        addLearnCell("learn-op", "×"),
+        addLearnCell("", ""),
+        addLearnCell("learn-op", "="),
+        addLearnCell("learn-delta", ""),
+      ];
+      for (const cell of row) addHoverHighlight(cell, i);
+      learnCells.push(row);
+      learnValues.push({ x: row[1], factor: row[3], delta: row[5] });
+    }
+
+    // Right: target, learning rate, then the error and rate × error worked
+    // out step by step.
+    const learnSide = document.createElement("div");
+    learnSide.className = "learn-side";
+    learnBody.appendChild(learnSide);
+
+    const targetRow = document.createElement("div");
+    targetRow.className = "learn-row";
+    const targetLabel = document.createElement("span");
+    targetLabel.className = "learn-label";
+    targetLabel.textContent = "Target";
+    targetRow.appendChild(targetLabel);
+
+    // X vs O task: pick whether the image on screen is an X or an O.
+    const targetButtons = [];
+    for (const [text, value] of [["X", TARGET_X], ["O", TARGET_O]]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "target-option";
+      button.textContent = text;
+      button.addEventListener("click", () => {
+        xoTarget = value;
+        updateLearnPanel();
+      });
+      targetRow.appendChild(button);
+      targetButtons.push({ value, button });
+    }
+    // Counting task: the target is just the black-pixel count.
+    const countTarget = document.createElement("span");
+    targetRow.appendChild(countTarget);
+    learnSide.appendChild(targetRow);
+
+    const rateRow = document.createElement("div");
+    rateRow.className = "learn-row";
+    const rateLabel = document.createElement("span");
+    rateLabel.className = "learn-label";
+    rateLabel.textContent = "Learning rate";
+    const rateSlider = document.createElement("input");
+    rateSlider.type  = "range";
+    rateSlider.className = "learn-rate-slider";
+    rateSlider.min   = 0;
+    rateSlider.max   = LEARN_RATE_MAX;
+    rateSlider.step  = LEARN_RATE_STEP;
+    rateSlider.value = learningRate;
+    const rateValue = document.createElement("span");
+    rateSlider.addEventListener("input", () => {
+      learningRate = Number(rateSlider.value);
+      updateLearnPanel();
+    });
+    // Label and value on one line, the slider on its own line below.
+    rateRow.append(rateLabel, rateValue);
+    learnSide.append(rateRow, rateSlider);
+
+    // Worked calculations; contents set by updateLearnPanel.
+    const errorText  = document.createElement("div");
+    const factorText = document.createElement("div");
+    learnSide.append(errorText, factorText);
+
+    // Bottom row: the rule, in words, and Learn.
+    const formulaRow = document.createElement("div");
+    formulaRow.className = "learn-row spread";
+    const formulaText = document.createElement("div");
+    formulaText.innerHTML = "Δ<i>w</i> = learning rate × error × input";
+    const learnButton = document.createElement("button");
+    learnButton.type = "button";
+    learnButton.className = "learn-button";
+    learnButton.textContent = "Learn";
+    learnButton.addEventListener("click", learnFromImage);
+    formulaRow.append(formulaText, learnButton);
+    learnPanel.appendChild(formulaRow);
+
+    learnObject.appendChild(learnPanel);
+    panelsLayer.appendChild(learnObject);
+
+    // Make the learning panel as wide as the math panel (which sizes itself
+    // to its contents) and push it right, so both panels share left and
+    // right edges. Widths are CSS pixels inside their foreignObjects, i.e.
+    // diagram units.
+    function matchLearnWidth() {
+      learnPanel.style.width = `${mathPanel.offsetWidth}px`;
+      learnPanel.style.marginLeft = "auto";
+    }
+
+    // Set the learning rate and move its slider to match.
+    function setLearningRate(rate) {
+      learningRate = rate;
+      rateSlider.value = rate;
+    }
+
+    // Target for the image on screen: picked (X vs O) or counted (counting).
+    function currentTarget() {
+      return (task === "xo") ? xoTarget : inputs.reduce((sum, v) => sum + v, 0);
+    }
+
+    // One update for the image on screen, using the selected activation.
+    // With ReLU, a preactivation <= 0 means the function is flat, so it passes
+    // no gradient and no weight changes (just as in training).
+    function computeLearnStep() {
+      const z = computePreactivation();
+      const act = ACTIVATIONS.find(a => a.id === activation);
+      const output = act.f(z);
+      const target = currentTarget();
+      const error = target - output;
+      const flat = (act.id === "relu" && z <= 0);
+      const deltas = [];
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        const x = inputs[INPUT_TO_PIXEL[i]];
+        deltas.push(flat ? 0 : learningRate * error * x);
+      }
+      return { target, output, error, flat, deltas };
+    }
+
+    // A weight after adding a change, kept within the slider range.
+    function clampWeight(w) {
+      return Math.min(W_MAX, Math.max(-W_MAX, w));
+    }
+
+    // Color for a change: blue for up, red for down, gray for none.
+    function deltaColor(d) {
+      const text = formatNumber(d, 2);
+      if (Number(text) === 0) return "#9a9a9a";
+      return `rgb(${(d > 0 ? POSITIVE_COLOR : NEGATIVE_COLOR).join(", ")})`;
+    }
+
+    // Refresh the learning panel and the ghost thumbs. Called from
+    // updateOutput, so it follows every change to inputs, weights or task.
+    function updateLearnPanel() {
+      const { target, output, error, flat, deltas } = computeLearnStep();
+
+      // Target controls for the current task.
+      const isXO = (task === "xo");
+      for (const { value, button } of targetButtons) {
+        button.style.display = isXO ? "" : "none";
+        button.classList.toggle("selected", value === xoTarget);
+      }
+      countTarget.style.display = isXO ? "none" : "";
+      countTarget.textContent = `${target} (black pixels)`;
+      rateValue.textContent = formatNumber(learningRate, 2);
+
+      // Worked calculations. The error and rate × error are colored by sign
+      // (blue = weights on active inputs go up, red = down).
+      const factor = flat ? 0 : learningRate * error;
+      const errorShown  = formatNumber(error, 2);
+      const factorShown = formatNumber(factor, 2);
+      errorText.innerHTML =
+        `<span class="learn-label">Error</span> = target − output` +
+        `<div class="learn-step">= ${target} − ${formatNumber(output, 2)}` +
+        ` = <b style="color: ${deltaColor(error)}">${errorShown}</b></div>`;
+      factorText.innerHTML = flat
+        ? `<span class="learn-label">Rate × error</span> = 0` +
+          `<div class="learn-step">(ReLU is flat here)</div>`
+        : `<span class="learn-label">Rate × error</span>` +
+          `<div class="learn-step">= ${formatNumber(learningRate, 2)} × ${errorShown}` +
+          ` = <b style="color: ${deltaColor(factor)}">${factorShown}</b></div>`;
+
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        const cells = learnValues[i];
+        cells.x.textContent = inputs[INPUT_TO_PIXEL[i]];
+        cells.factor.innerHTML = withSignSlot(factorShown);
+        cells.factor.style.color = deltaColor(factor);
+        cells.delta.innerHTML = withSignSlot(formatNumber(deltas[i], 2));
+        cells.delta.style.color = deltaColor(deltas[i]);
+
+        // Ghost thumb at the weight's new value (hidden if it wouldn't move).
+        const newW = clampWeight(weights[i] + deltas[i]);
+        const moves = Math.abs(newW - weights[i]) >= W_STEP / 2;
+        ghostThumbs[i].style.display = moves ? "" : "none";
+        const fromTop = (W_MAX - newW) / (2 * W_MAX);  // 0 at the top, 1 at the bottom
+        ghostThumbs[i].style.top =
+          `${SLIDER_TOP + SLIDER_THUMB / 2 + fromTop * (SLIDER_LENGTH - SLIDER_THUMB)}px`;
+      }
+
+    }
+
+    // Learn button: pause any training, then apply one update for the image
+    // on screen.
+    function learnFromImage() {
+      if (isTraining) toggleTraining();
+      const { deltas } = computeLearnStep();
+      for (let i = 0; i < NUM_INPUTS; i++) {
+        weights[i] = clampWeight(weights[i] + deltas[i]);
+        weightSliders[i].value = weights[i];
+        updateWeightDisplay(i);
+      }
+      updateOutput();
+    }
+
     // Set every weight to a random value, uniform between -W_MAX and +W_MAX,
     // rounded to the slider's step. Updates sliders, arrows and output.
     function initializeWeights() {
@@ -1539,9 +2017,8 @@
         }
       }
 
-      const rate = TASKS[task].learningRate;
       for (let i = 0; i < NUM_INPUTS; i++) {
-        const updated = weights[i] + rate * step[i] / trainingSet.length;
+        const updated = weights[i] + learningRate * step[i] / trainingSet.length;
         weights[i] = Math.min(W_MAX, Math.max(-W_MAX, updated));
         weightSliders[i].value = weights[i];
         updateWeightDisplay(i);
@@ -1576,12 +2053,14 @@
     }
 
     // Task button: pause training, switch to the other task, build that
-    // task's training set, and select its activation. Weights are kept.
+    // task's training set, and select its activation and default learning
+    // rate. Weights are kept.
     function switchTask() {
       if (isTraining) toggleTraining();
       task = (task === "xo") ? "count" : "xo";
       taskButton.textContent = TASKS[task].label;
       generateTrainingSet();
+      setLearningRate(TASKS[task].learningRate);
       activation = TASKS[task].activation;
       updateActivationSelection();
       updateOutput();
@@ -1755,10 +2234,15 @@
     // shows the output).
     initialize();
     fitMathSpacing();
+    matchLearnWidth();
 
     // Text widths change when the web font arrives, so refit the math table
-    // (and redraw its connecting line) once all fonts have loaded.
-    document.fonts.ready.then(fitMathSpacing);
+    // (and redraw its connecting line) and rematch the learning panel's
+    // width once all fonts have loaded.
+    document.fonts.ready.then(() => {
+      fitMathSpacing();
+      matchLearnWidth();
+    });
   </script>
 
 </body>
